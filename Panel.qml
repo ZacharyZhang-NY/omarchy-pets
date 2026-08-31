@@ -75,6 +75,13 @@ Panel {
         width: parent.width
         spacing: Style.space(10)
 
+        PetSprite {
+          visible: root.currentPet !== null
+          anchors.horizontalCenter: parent.horizontalCenter
+          sheetUrl: root.currentPet ? root.currentPet.sheetUrl : ""
+          smoothScaling: root.smoothScaling
+        }
+
         Text {
           width: parent.width
           text: root.currentPet ? root.currentPet.displayName : "Pets"
