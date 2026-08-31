@@ -1,0 +1,72 @@
+{
+  "schemaVersion": 1,
+  "id": "raiden-meixelysia.omarchy-pets",
+  "name": "Omarchy Pets",
+  "version": "1.0.0",
+  "author": "Raiden-MeixElysia",
+  "license": "MIT",
+  "description": "An animated Codex Pets companion in the bar: it plays its own moves on a random schedule, looks at your cursor, and can be pinned to the desktop.",
+  "kinds": ["bar-widget"],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Pets",
+    "description": "Animated sprite pet from ~/.codex/pets",
+    "category": "Fun",
+    "allowMultiple": false,
+    "defaultSection": "right",
+    "defaults": {
+      "petId": "",
+      "petsDir": "~/.codex/pets",
+      "smooth": true,
+      "pinned": false,
+      "randomBehavior": true,
+      "animate": true
+    },
+    "schema": [
+      {
+        "key": "petId",
+        "type": "string",
+        "label": "Pet",
+        "description": "Directory name under the pets folder. Pick it from the panel.",
+        "defaultValue": ""
+      },
+      {
+        "key": "petsDir",
+        "type": "string",
+        "label": "Pets folder",
+        "description": "Where Codex Pets packages are unzipped.",
+        "defaultValue": "~/.codex/pets"
+      },
+      {
+        "key": "smooth",
+        "type": "boolean",
+        "label": "Smooth scaling",
+        "description": "Turn off for pixel-art pets.",
+        "defaultValue": true
+      },
+      {
+        "key": "pinned",
+        "type": "boolean",
+        "label": "Pinned",
+        "description": "Keep the pet on the desktop with the panel closed.",
+        "defaultValue": false
+      },
+      {
+        "key": "randomBehavior",
+        "type": "boolean",
+        "label": "Random behaviour",
+        "description": "Play a random move every 8-20 seconds.",
+        "defaultValue": true
+      },
+      {
+        "key": "animate",
+        "type": "boolean",
+        "label": "Animate",
+        "description": "Off shows a single still frame and runs no timer.",
+        "defaultValue": true
+      }
+    ]
+  }
+}
