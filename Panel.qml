@@ -20,6 +20,7 @@ Panel {
   }
   readonly property string petId: String(root.setting("petId", ""))
   readonly property bool smoothScaling: root.setting("smooth", true) === true
+  readonly property bool animate: root.setting("animate", true) === true
   readonly property var currentPet: {
     var pets = library.pets
     for (var i = 0; i < pets.length; i++) if (pets[i].name === petId) return pets[i]
@@ -80,6 +81,7 @@ Panel {
           anchors.horizontalCenter: parent.horizontalCenter
           sheetUrl: root.currentPet ? root.currentPet.sheetUrl : ""
           smoothScaling: root.smoothScaling
+          running: root.opened && root.animate && root.currentPet !== null
         }
 
         Text {

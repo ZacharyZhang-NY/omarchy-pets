@@ -1,27 +1,61 @@
 import QtQuick
+import "Sprite.js" as Sprite
 
-// One 192x208 cell of a Codex Pets atlas, picked by row/frame offsets.
+// One 192x208 cell of a Codex Pets atlas, animated by a single per-frame timer.
 Item {
   id: root
 
   property url sheetUrl
   property bool smoothScaling: true
-  property int row: 0
+  property bool running: false
+  property string pose: "idle"
   property int frame: 0
 
   readonly property bool ready: sheet.status === Image.Ready
   readonly property int rows: ready ? sheet.sourceSize.height / 208 : 0
+  readonly property var durations: Sprite.POSES[pose].durations
   property url loggedSheet
 
   implicitWidth: 192
   implicitHeight: 208
   clip: true
 
+  function restart() {
+    pose = "idle"
+    frame = 0
+    clock.interval = durations[0]
+    clock.start()
+  }
+
+  function stop() {
+    clock.stop()
+    pose = "idle"
+    frame = 0
+  }
+
+  function step() {
+    frame = (frame + 1) % durations.length
+    clock.interval = durations[frame]
+    clock.start()
+  }
+
+  onRunningChanged: {
+    console.log("omarchy-pets: animation " + (running ? "started" : "stopped"))
+    if (running) restart()
+    else stop()
+  }
+
+  Timer {
+    id: clock
+    repeat: false
+    onTriggered: root.step()
+  }
+
   Image {
     id: sheet
     source: root.sheetUrl
     x: -root.frame * 192
-    y: -root.row * 208
+    y: -Sprite.POSES[root.pose].row * 208
     smooth: root.smoothScaling
     asynchronous: true
     onStatusChanged: {
