@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Wayland
 import qs.Commons
 import qs.Ui
 
@@ -22,6 +23,7 @@ Panel {
   readonly property bool smoothScaling: root.setting("smooth", true) === true
   readonly property bool animate: root.setting("animate", true) === true
   readonly property bool randomBehavior: root.setting("randomBehavior", true) === true
+  readonly property bool pinned: root.setting("pinned", false) === true
   readonly property var currentPet: {
     var pets = library.pets
     for (var i = 0; i < pets.length; i++) if (pets[i].name === petId) return pets[i]
@@ -31,7 +33,23 @@ Panel {
   readonly property color hoverFill: Style.hoverFillFor(barForeground, Color.accent)
   readonly property color selectedFill: Style.selectedFillFor(barForeground, Color.accent)
 
+  // Where the stage sits inside the panel card, in screen coordinates.
+  readonly property real cardInnerWidth: panel.contentWidth - Border.left(panel.borderSpec) - Border.right(panel.borderSpec) - panel.padding * 2
+  readonly property int stageScreenX: Math.round(panel.cardOrigin.x + Border.left(panel.borderSpec) + panel.padding + (cardInnerWidth - stage.width) / 2)
+  readonly property int stageScreenY: Math.round(panel.cardOrigin.y + Border.top(panel.borderSpec) + panel.padding)
+
   onOpenedChanged: if (opened) library.rescan()
+  onPinnedChanged: if (pinned) root.controller.hide()
+
+  function open() {
+    if (pinned) saveSetting("pinned", false)
+    root.controller.show()
+  }
+
+  function toggle() {
+    if (pinned || !opened) open()
+    else close()
+  }
 
   function saveSetting(key, value) {
     var registry = bar && bar.shell ? bar.shell.pluginRegistry : null
@@ -56,6 +74,59 @@ Panel {
     petsDir: root.petsDir
   }
 
+  // The pet and its pin button live in the panel card or in the pinned window.
+  Item {
+    id: stage
+    parent: root.pinned ? pinnedSlot : panelSlot
+    width: 192
+    height: 208
+
+    PetSprite {
+      anchors.fill: parent
+      sheetUrl: root.currentPet ? root.currentPet.sheetUrl : ""
+      smoothScaling: root.smoothScaling
+      running: (root.opened || root.pinned) && root.animate && root.currentPet !== null
+      randomBehavior: root.randomBehavior
+    }
+
+    PanelActionButton {
+      anchors.top: parent.top
+      anchors.right: parent.right
+      iconText: root.pinned ? "\u{f0930}" : "\u{f0403}"
+      tooltipText: root.pinned ? "Unpin" : "Pin to the desktop"
+      foreground: root.barForeground
+      fontFamily: root.fontFamily
+      onClicked: root.saveSetting("pinned", !root.pinned)
+    }
+  }
+
+  PanelWindow {
+    id: pinnedWindow
+    visible: root.pinned && root.currentPet !== null
+    screen: panel.screen
+    color: "transparent"
+    exclusionMode: ExclusionMode.Ignore
+    WlrLayershell.namespace: "omarchy-pets"
+    WlrLayershell.layer: WlrLayer.Top
+    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    anchors {
+      left: true
+      top: true
+    }
+    margins {
+      left: root.stageScreenX
+      top: root.stageScreenY
+    }
+    implicitWidth: stage.width
+    implicitHeight: stage.height
+    mask: Region { item: pinnedSlot }
+
+    Item {
+      id: pinnedSlot
+      anchors.fill: parent
+    }
+  }
+
   KeyboardPanel {
     id: panel
     anchorItem: root.anchorItem
@@ -77,13 +148,12 @@ Panel {
         width: parent.width
         spacing: Style.space(10)
 
-        PetSprite {
+        Item {
+          id: panelSlot
           visible: root.currentPet !== null
           anchors.horizontalCenter: parent.horizontalCenter
-          sheetUrl: root.currentPet ? root.currentPet.sheetUrl : ""
-          smoothScaling: root.smoothScaling
-          running: root.opened && root.animate && root.currentPet !== null
-          randomBehavior: root.randomBehavior
+          width: stage.width
+          height: stage.height
         }
 
         Text {
