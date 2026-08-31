@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 import qs.Ui
@@ -8,6 +9,8 @@ BarWidget {
 
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
+  readonly property var pet: panelLoader.item ? panelLoader.item.currentPet : null
+  readonly property bool smoothScaling: setting("smooth", true) === true
 
   function open() { if (panelLoader.item) panelLoader.item.open() }
   function close() { if (panelLoader.item) panelLoader.item.close() }
@@ -40,12 +43,26 @@ BarWidget {
     }
   }
 
+  Component {
+    id: avatar
+
+    Image {
+      source: root.pet ? root.pet.sheetUrl : ""
+      sourceClipRect: Qt.rect(0, 0, 192, 208)
+      fillMode: Image.PreserveAspectFit
+      smooth: root.smoothScaling
+      asynchronous: true
+    }
+  }
+
   BarIconButton {
     id: button
     anchors.fill: parent
     bar: root.bar
+    opticalSize: root.barSize - Style.space(6)
     text: "\uf1b0"
-    tooltipText: "Pets"
+    iconComponent: root.pet ? avatar : null
+    tooltipText: root.pet ? root.pet.displayName : "Pets"
     onPressed: function(buttonCode) { if (buttonCode === Qt.LeftButton) root.toggle() }
   }
 }
