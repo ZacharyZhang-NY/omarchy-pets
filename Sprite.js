@@ -21,3 +21,12 @@ function pickAction(previous, random) {
 function drawWaitMs(random) {
   return 8000 + Math.floor(random * 12001)
 }
+
+// Rows 9-10 are a 16-way look wheel, 22.5 degrees apart, index 0 = up, clockwise.
+var LOOK_ROWS = 11
+var NEUTRAL_FRAME = 6
+
+function lookCell(dx, dy) {
+  var index = Math.round(((Math.atan2(dx, -dy) * 180 / Math.PI + 360) % 360) / 22.5) % 16
+  return { row: 9 + Math.floor(index / 8), frame: index % 8 }
+}

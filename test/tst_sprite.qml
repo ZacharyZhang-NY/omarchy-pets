@@ -61,4 +61,19 @@ TestCase {
     compare(Sprite.drawWaitMs(0.999999), 20000)
     verify(Sprite.drawWaitMs(0.5) >= 8000 && Sprite.drawWaitMs(0.5) <= 20000)
   }
+
+  function test_look_wheel_cardinals() {
+    compare(Sprite.lookCell(0, -1), { row: 9, frame: 0 })
+    compare(Sprite.lookCell(1, 0), { row: 9, frame: 4 })
+    compare(Sprite.lookCell(0, 1), { row: 10, frame: 0 })
+    compare(Sprite.lookCell(-1, 0), { row: 10, frame: 4 })
+  }
+
+  function test_look_wheel_diagonals_and_rounding() {
+    compare(Sprite.lookCell(1, -1), { row: 9, frame: 2 })
+    compare(Sprite.lookCell(-1, 1), { row: 10, frame: 2 })
+    compare(Sprite.lookCell(Math.tan(11 * Math.PI / 180), -1), { row: 9, frame: 0 })
+    compare(Sprite.lookCell(Math.tan(12 * Math.PI / 180), -1), { row: 9, frame: 1 })
+    compare(Sprite.lookCell(-Math.tan(12 * Math.PI / 180), -1), { row: 10, frame: 7 })
+  }
 }

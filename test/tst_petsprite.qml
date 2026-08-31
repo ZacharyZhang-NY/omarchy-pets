@@ -1,11 +1,23 @@
 import QtQuick
 import QtTest
 import ".."
+import "../Sprite.js" as Sprite
 
 TestCase {
   name: "PetSprite"
 
   PetSprite { id: sprite }
+
+  function init() {
+    sprite.running = false
+    sprite.hovering = false
+    sprite.randomBehavior = true
+  }
+
+  function loadAtlas(name) {
+    sprite.sheetUrl = Qt.resolvedUrl(name)
+    tryCompare(sprite, "ready", true, 3000)
+  }
 
   function test_stopped_holds_idle_frame_zero() {
     compare(sprite.running, false)
@@ -91,5 +103,125 @@ TestCase {
     sprite.frameChanged.disconnect(stamp)
     verify(nextFrameAt - toggledAt >= 250, "first frame " + (nextFrameAt - toggledAt) + " ms after toggle, expected a full 280 ms")
     sprite.running = false
+  }
+
+  function test_hover_looks_at_pointer_and_pauses_the_loop() {
+    loadAtlas("atlas-v2.png")
+    compare(sprite.lookEnabled, true)
+    sprite.running = true
+    var remaining = sprite.waitMs
+    sprite.look = Sprite.lookCell(0, -100)
+    sprite.hovering = true
+    compare(sprite.looking, true)
+    compare(sprite.cell, { row: 9, frame: 0 })
+    sprite.look = Sprite.lookCell(100, 0)
+    compare(sprite.cell, { row: 9, frame: 4 })
+    wait(500)
+    compare(sprite.waitMs, remaining)
+    sprite.leave()
+    compare(sprite.looking, false)
+    compare(sprite.cell, { row: 0, frame: 6 })
+    tryCompare(sprite, "neutralBeat", false, 1000)
+    compare(sprite.pose, "idle")
+    compare(sprite.cell.row, 0)
+    tryVerify(function() { return sprite.waitMs < remaining }, 1000)
+    sprite.running = false
+  }
+
+  function test_v1_atlas_ignores_hover() {
+    loadAtlas("atlas-v1.png")
+    compare(sprite.rows, 9)
+    compare(sprite.lookEnabled, false)
+    sprite.running = true
+    sprite.hovering = true
+    compare(sprite.looking, false)
+    compare(sprite.cell.row, 0)
+    sprite.leave()
+    compare(sprite.neutralBeat, false)
+    sprite.running = false
+  }
+
+  function test_wave_plays_once_then_idles_with_new_wait() {
+    loadAtlas("atlas-v2.png")
+    sprite.running = true
+    sprite.wave()
+    compare(sprite.pose, "waving")
+    compare(sprite.loopsLeft, 1)
+    tryCompare(sprite, "pose", "idle", 2000)
+    verify(sprite.waitMs >= 8000 && sprite.waitMs <= 20000, "wait " + sprite.waitMs)
+    sprite.running = false
+  }
+
+  function test_wave_while_hovering_then_returns_to_look() {
+    loadAtlas("atlas-v2.png")
+    sprite.running = true
+    sprite.look = Sprite.lookCell(0, -100)
+    sprite.hovering = true
+    compare(sprite.looking, true)
+    sprite.wave()
+    compare(sprite.looking, false)
+    compare(sprite.pose, "waving")
+    tryCompare(sprite, "pose", "idle", 2000)
+    compare(sprite.looking, true)
+    compare(sprite.cell, { row: 9, frame: 0 })
+    var remaining = sprite.waitMs
+    wait(500)
+    compare(sprite.waitMs, remaining)
+    sprite.running = false
+    sprite.leave()
+    var frames = 0
+    function count() { frames++ }
+    sprite.frameChanged.connect(count)
+    wait(700)
+    sprite.frameChanged.disconnect(count)
+    compare(frames, 0)
+    compare(sprite.waitMs, remaining)
+  }
+
+  function test_hover_ignored_while_not_running() {
+    loadAtlas("atlas-v2.png")
+    compare(sprite.running, false)
+    sprite.look = Sprite.lookCell(0, -100)
+    sprite.hovering = true
+    compare(sprite.looking, false)
+    compare(sprite.cell, { row: 0, frame: 0 })
+    sprite.leave()
+    compare(sprite.neutralBeat, false)
+    compare(sprite.cell, { row: 0, frame: 0 })
+  }
+
+  function test_neutral_beat_does_not_survive_a_v1_sheet() {
+    loadAtlas("atlas-v2.png")
+    sprite.running = true
+    sprite.hovering = true
+    sprite.leave()
+    compare(sprite.cell, { row: 0, frame: 6 })
+    loadAtlas("atlas-v1.png")
+    compare(sprite.neutralBeat, false)
+    compare(sprite.cell, { row: 0, frame: 0 })
+    sprite.running = false
+  }
+
+  function test_wave_from_a_late_idle_frame_while_hovering_is_clean() {
+    failOnWarning(/Cannot assign/)
+    loadAtlas("atlas-v2.png")
+    sprite.running = true
+    tryCompare(sprite, "frame", 5, 2000)
+    sprite.hovering = true
+    compare(sprite.looking, true)
+    sprite.wave()
+    compare(sprite.pose, "waving")
+    compare(sprite.frame, 0)
+    tryCompare(sprite, "frame", 1, 500)
+    tryCompare(sprite, "pose", "idle", 2000)
+    sprite.leave()
+    sprite.running = false
+  }
+
+  function test_wave_does_nothing_while_stopped() {
+    loadAtlas("atlas-v2.png")
+    compare(sprite.running, false)
+    sprite.wave()
+    compare(sprite.pose, "idle")
   }
 }

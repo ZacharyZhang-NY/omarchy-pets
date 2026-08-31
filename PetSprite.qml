@@ -14,10 +14,18 @@ Item {
   property int waitMs: 0
   property int loopsLeft: 0
   property string lastAction: ""
+  property bool hovering: false
+  property var look: ({ row: 0, frame: 0 })
+  property bool neutralBeat: false
 
   readonly property bool ready: sheet.status === Image.Ready
   readonly property int rows: ready ? sheet.sourceSize.height / 208 : 0
+  readonly property bool lookEnabled: rows >= Sprite.LOOK_ROWS
+  readonly property bool looking: running && lookEnabled && hovering && pose === "idle"
+  readonly property bool ticking: running && !looking
   readonly property var durations: Sprite.POSES[pose].durations
+  readonly property var cell: looking ? look
+    : (neutralBeat ? { row: 0, frame: Sprite.NEUTRAL_FRAME } : { row: Sprite.POSES[pose].row, frame: frame })
   property url loggedSheet
 
   implicitWidth: 192
@@ -26,13 +34,7 @@ Item {
 
   function restart() {
     beginIdle()
-    arm()
-  }
-
-  function stop() {
-    clock.stop()
-    pose = "idle"
-    frame = 0
+    if (ticking) arm()
   }
 
   function arm() {
@@ -41,19 +43,40 @@ Item {
   }
 
   function beginIdle() {
-    pose = "idle"
     frame = 0
+    neutralBeat = false
+    pose = "idle"
     waitMs = Sprite.drawWaitMs(Math.random())
   }
 
   function beginAction(name, loops) {
-    pose = name
+    frame = 0
+    neutralBeat = false
     lastAction = name
     loopsLeft = loops
-    frame = 0
+    pose = name
+  }
+
+  function wave() {
+    if (!running) return
+    beginAction("waving", 1)
+    if (ticking) arm()
+  }
+
+  function leave() {
+    if (looking) {
+      frame = 0
+      neutralBeat = true
+    }
+    hovering = false
   }
 
   function step() {
+    if (neutralBeat) {
+      neutralBeat = false
+      arm()
+      return
+    }
     var elapsed = clock.interval
     frame = (frame + 1) % durations.length
     if (pose !== "idle") {
@@ -62,16 +85,27 @@ Item {
       waitMs -= elapsed
       if (randomBehavior && waitMs <= 0) beginAction(Sprite.pickAction(lastAction, Math.random()), Sprite.ACTION_LOOPS)
     }
-    arm()
+    if (ticking) arm()
   }
 
   onRunningChanged: {
     console.log("omarchy-pets: animation " + (running ? "started" : "stopped"))
-    if (running) restart()
-    else stop()
+    if (running) beginIdle()
+    else {
+      clock.stop()
+      pose = "idle"
+      frame = 0
+      neutralBeat = false
+    }
+  }
+
+  onTickingChanged: {
+    if (ticking) arm()
+    else clock.stop()
   }
 
   onRandomBehaviorChanged: if (running) restart()
+  onLookEnabledChanged: if (!lookEnabled) neutralBeat = false
 
   Timer {
     id: clock
@@ -82,8 +116,8 @@ Item {
   Image {
     id: sheet
     source: root.sheetUrl
-    x: -root.frame * 192
-    y: -Sprite.POSES[root.pose].row * 208
+    x: -root.cell.frame * 192
+    y: -root.cell.row * 208
     smooth: root.smoothScaling
     asynchronous: true
     onStatusChanged: {
@@ -94,5 +128,19 @@ Item {
         console.warn("omarchy-pets: unexpected atlas size " + sourceSize.width + "x" + sourceSize.height + " for " + source)
       console.log("omarchy-pets: loaded " + source + " rows=" + sourceSize.height / 208)
     }
+  }
+
+  MouseArea {
+    id: mouse
+    anchors.fill: parent
+    hoverEnabled: true
+    cursorShape: Qt.PointingHandCursor
+    onEntered: {
+      root.look = Sprite.lookCell(mouseX - width / 2, mouseY - height / 2)
+      root.hovering = true
+    }
+    onPositionChanged: function(event) { root.look = Sprite.lookCell(event.x - width / 2, event.y - height / 2) }
+    onExited: root.leave()
+    onClicked: root.wave()
   }
 }
