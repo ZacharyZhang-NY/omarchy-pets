@@ -1,7 +1,7 @@
 import QtQuick
 import "Sprite.js" as Sprite
 
-// One 192x208 cell of a Codex Pets atlas, animated by a single per-frame timer.
+// One atlas cell, animated by one per-frame timer.
 Item {
   id: root
 

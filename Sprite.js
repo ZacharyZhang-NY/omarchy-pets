@@ -1,6 +1,6 @@
 .pragma library
 
-// Row and per-frame durations (ms) of each pose this plugin plays.
+// Row and frame durations (ms) per pose.
 var POSES = {
   idle:    { row: 0, durations: [280, 110, 110, 140, 140, 320] },
   waving:  { row: 3, durations: [140, 140, 140, 280] },
@@ -9,7 +9,7 @@ var POSES = {
   running: { row: 7, durations: [120, 120, 120, 120, 120, 220] }
 }
 
-// Random behaviour: one of these, played ACTION_LOOPS times, every 8-20 s.
+// Random behaviour pool, played ACTION_LOOPS times.
 var ACTIONS = ["waving", "jumping", "waiting", "running"]
 var ACTION_LOOPS = 2
 
@@ -22,7 +22,7 @@ function drawWaitMs(random) {
   return 8000 + Math.floor(random * 12001)
 }
 
-// Rows 9-10 are a 16-way look wheel, 22.5 degrees apart, index 0 = up, clockwise.
+// Rows 9-10: 16-way look wheel, index 0 = up, clockwise.
 var LOOK_ROWS = 11
 var NEUTRAL_FRAME = 6
 

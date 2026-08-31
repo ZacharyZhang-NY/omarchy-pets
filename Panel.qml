@@ -33,7 +33,7 @@ Panel {
   readonly property color hoverFill: Style.hoverFillFor(barForeground, Color.accent)
   readonly property color selectedFill: Style.selectedFillFor(barForeground, Color.accent)
 
-  // Where the stage sits inside the panel card, in screen coordinates.
+  // Stage position inside the card, screen coordinates.
   readonly property real cardInnerWidth: panel.contentWidth - Border.left(panel.borderSpec) - Border.right(panel.borderSpec) - panel.padding * 2
   readonly property int stageScreenX: Math.round(panel.cardOrigin.x + Border.left(panel.borderSpec) + panel.padding + (cardInnerWidth - stage.width) / 2)
   readonly property int stageScreenY: Math.round(panel.cardOrigin.y + Border.top(panel.borderSpec) + panel.padding)
@@ -74,7 +74,7 @@ Panel {
     petsDir: root.petsDir
   }
 
-  // The pet and its pin button live in the panel card or in the pinned window.
+  // Reparented between the card and the pinned window.
   Item {
     id: stage
     parent: root.pinned ? pinnedSlot : panelSlot
