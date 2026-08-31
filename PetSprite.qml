@@ -8,8 +8,12 @@ Item {
   property url sheetUrl
   property bool smoothScaling: true
   property bool running: false
+  property bool randomBehavior: true
   property string pose: "idle"
   property int frame: 0
+  property int waitMs: 0
+  property int loopsLeft: 0
+  property string lastAction: ""
 
   readonly property bool ready: sheet.status === Image.Ready
   readonly property int rows: ready ? sheet.sourceSize.height / 208 : 0
@@ -21,10 +25,8 @@ Item {
   clip: true
 
   function restart() {
-    pose = "idle"
-    frame = 0
-    clock.interval = durations[0]
-    clock.start()
+    beginIdle()
+    arm()
   }
 
   function stop() {
@@ -33,10 +35,34 @@ Item {
     frame = 0
   }
 
-  function step() {
-    frame = (frame + 1) % durations.length
+  function arm() {
     clock.interval = durations[frame]
-    clock.start()
+    clock.restart()
+  }
+
+  function beginIdle() {
+    pose = "idle"
+    frame = 0
+    waitMs = Sprite.drawWaitMs(Math.random())
+  }
+
+  function beginAction(name, loops) {
+    pose = name
+    lastAction = name
+    loopsLeft = loops
+    frame = 0
+  }
+
+  function step() {
+    var elapsed = clock.interval
+    frame = (frame + 1) % durations.length
+    if (pose !== "idle") {
+      if (frame === 0 && --loopsLeft === 0) beginIdle()
+    } else {
+      waitMs -= elapsed
+      if (randomBehavior && waitMs <= 0) beginAction(Sprite.pickAction(lastAction, Math.random()), Sprite.ACTION_LOOPS)
+    }
+    arm()
   }
 
   onRunningChanged: {
@@ -44,6 +70,8 @@ Item {
     if (running) restart()
     else stop()
   }
+
+  onRandomBehaviorChanged: if (running) restart()
 
   Timer {
     id: clock

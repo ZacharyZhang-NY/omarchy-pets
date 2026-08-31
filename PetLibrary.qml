@@ -34,6 +34,7 @@ for sub in "$dir"/*; do
   [[ -f "$sub/$sheet" ]] || { skip "spritesheet missing: $sheet"; continue; }
   height=$(identify -format '%h' "$sub/$sheet[0]" 2>/dev/null) || { skip "unreadable spritesheet"; continue; }
   (( height % 208 == 0 )) || { skip "atlas height $height is not a multiple of 208"; continue; }
+  (( height >= 9 * 208 )) || { skip "atlas has only $(( height / 208 )) rows, expected at least 9"; continue; }
   printf 'pet\\t%s\\t%s\\n' "$sub" "$meta"
 done
 `

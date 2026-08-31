@@ -35,4 +35,30 @@ TestCase {
       for (var i = 0; i < d.length - 1; i++) verify(d[i] < last, name + " frame " + i)
     }
   }
+
+  function test_pick_action_never_repeats() {
+    for (var p = 0; p < Sprite.ACTIONS.length; p++) {
+      var previous = Sprite.ACTIONS[p]
+      var seen = {}
+      for (var r = 0; r < 1; r += 0.05) {
+        var picked = Sprite.pickAction(previous, r)
+        verify(picked !== previous, "picked " + picked + " after " + previous)
+        verify(Sprite.ACTIONS.indexOf(picked) !== -1, picked)
+        seen[picked] = true
+      }
+      compare(Object.keys(seen).length, Sprite.ACTIONS.length - 1)
+    }
+  }
+
+  function test_first_pick_covers_whole_pool() {
+    var seen = {}
+    for (var r = 0; r < 1; r += 0.05) seen[Sprite.pickAction("", r)] = true
+    compare(Object.keys(seen).length, Sprite.ACTIONS.length)
+  }
+
+  function test_wait_range() {
+    compare(Sprite.drawWaitMs(0), 8000)
+    compare(Sprite.drawWaitMs(0.999999), 20000)
+    verify(Sprite.drawWaitMs(0.5) >= 8000 && Sprite.drawWaitMs(0.5) <= 20000)
+  }
 }

@@ -8,3 +8,16 @@ var POSES = {
   waiting: { row: 6, durations: [150, 150, 150, 150, 150, 260] },
   running: { row: 7, durations: [120, 120, 120, 120, 120, 220] }
 }
+
+// Random behaviour: one of these, played ACTION_LOOPS times, every 8-20 s.
+var ACTIONS = ["waving", "jumping", "waiting", "running"]
+var ACTION_LOOPS = 2
+
+function pickAction(previous, random) {
+  var pool = ACTIONS.filter(function(name) { return name !== previous })
+  return pool[Math.floor(random * pool.length)]
+}
+
+function drawWaitMs(random) {
+  return 8000 + Math.floor(random * 12001)
+}
