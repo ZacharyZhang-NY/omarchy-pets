@@ -201,6 +201,36 @@ Panel {
             onClicked: root.saveSetting("petId", modelData.name)
           }
         }
+
+        Toggle {
+          width: parent.width
+          label: "Smooth scaling"
+          description: "Turn off for pixel-art pets"
+          checked: root.smoothScaling
+          foreground: root.barForeground
+          fontFamily: root.fontFamily
+          onClicked: root.saveSetting("smooth", !root.smoothScaling)
+        }
+
+        Toggle {
+          width: parent.width
+          label: "Random behaviour"
+          description: "A move of its own every 8-20 seconds"
+          checked: root.randomBehavior
+          foreground: root.barForeground
+          fontFamily: root.fontFamily
+          onClicked: root.saveSetting("randomBehavior", !root.randomBehavior)
+        }
+
+        Toggle {
+          width: parent.width
+          label: "Animate"
+          description: "Off shows one still frame and runs no timer"
+          checked: root.animate
+          foreground: root.barForeground
+          fontFamily: root.fontFamily
+          onClicked: root.saveSetting("animate", !root.animate)
+        }
       }
     }
   }
