@@ -3,7 +3,8 @@
 A desktop pet for the [Omarchy](https://omarchy.org) bar. It plays
 [Codex Pets](https://codex-pets.net) sprite sheets straight from
 `~/.codex/pets/`, moves on its own every 8–20 seconds, turns its head toward
-your pointer, waves when clicked, and can be pinned to the desktop.
+your pointer, waves when clicked, and can be pinned to the desktop and dragged
+anywhere on the screen.
 
 ![The panel with a hyrax pet, the pet list and the settings](preview.png)
 
@@ -21,14 +22,16 @@ Needs `jq` and ImageMagick's `identify`, both part of the Omarchy base install.
 
 ## Use
 
-- Click the pet in the bar to open the panel: the animated pet, the list of
-  installed pets, and the settings. Escape or a click outside closes it.
-- Click a pet in the list to switch. The choice survives shell restarts.
+- Click the pet in the bar to open the panel: the animated pet, the first
+  three installed pets, and the settings. Escape or a click outside closes it.
+- Click a pet in the list to switch. The choice survives shell restarts. With
+  more than three pets, "View all" opens the full list; "Back" returns.
 - Hover the pet and it looks at the pointer (v2 sheets only); click it and it
   waves.
 - The pin button (top-right of the pet) keeps the pet on the desktop with the
   panel closed. It never takes keyboard focus and only the pet itself is
-  clickable. Click the pin again, or the bar icon, to unpin.
+  clickable. Drag the pinned pet to put it anywhere on the screen; the spot is
+  remembered. Click the bar icon to unpin.
 
 ## Settings
 
@@ -45,6 +48,8 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 | `petsDir` | string | `~/.codex/pets` | Where pets are read from |
 | `smooth` | bool | `true` | Bilinear scaling; turn off for pixel-art pets |
 | `pinned` | bool | `false` | Keep the pet on the desktop |
+| `pinnedX` | int | `-1` | Left edge of the pinned pet in screen pixels; `-1` is below the bar icon. Dragging sets it |
+| `pinnedY` | int | `-1` | Top edge of the pinned pet; same rules |
 | `randomBehavior` | bool | `true` | Play a random move every 8–20 s |
 | `animate` | bool | `true` | Off shows one still frame and runs no timer |
 
