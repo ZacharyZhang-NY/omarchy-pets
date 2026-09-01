@@ -6,7 +6,16 @@ A desktop pet for the [Omarchy](https://omarchy.org) bar. It plays
 your pointer, waves when clicked, and can be pinned to the desktop and dragged
 anywhere on the screen.
 
-![The panel with a hyrax pet, the pet list and the settings](preview.png)
+![Dragging the pinned pet around the desktop, then switching pets from the panel](preview.gif)
+
+## Requirements
+
+- Omarchy 4 (Quattro) with its Quickshell bar, `omarchy-shell`, on Hyprland.
+- `jq` and ImageMagick's `identify`, both part of the Omarchy base install.
+  They check each pet's `pet.json` and sprite sheet when the panel opens.
+- At least one pet from <https://codex-pets.net>, unzipped into
+  `~/.codex/pets/<id>/` (the same place Codex itself reads). Pets are not
+  part of this repository.
 
 ## Install
 
@@ -14,11 +23,7 @@ anywhere on the screen.
 omarchy plugin add https://github.com/ZacharyZhang-NY/omarchy-pets.git --enable
 ```
 
-Then download a pet from <https://codex-pets.net> and unzip it into
-`~/.codex/pets/<id>/` (the same place Codex itself reads). The bar shows the
-current pet's first frame; with no pets it shows a paw.
-
-Needs `jq` and ImageMagick's `identify`, both part of the Omarchy base install.
+The bar shows the current pet's first frame; with no pets it shows a paw.
 
 ## Use
 
@@ -53,11 +58,25 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 | `randomBehavior` | bool | `true` | Play a random move every 8–20 s |
 | `animate` | bool | `true` | Off shows one still frame and runs no timer |
 
+## What it touches
+
+- Reads `~/.codex/pets/` (or the `petsDir` override) each time the panel
+  opens. It never creates, renames or deletes anything there.
+- Runs `bash`, `jq` and `identify` once per scan to validate the pets. No
+  network access, no installer, nothing run as root.
+- Writes only its own settings (the keys above) into the bar layout in
+  `~/.config/omarchy/shell.json`, through the shell's plugin registry, which
+  is the same path `omarchy bar set` uses.
+
 ## Remove
 
 ```sh
 omarchy plugin remove raiden-meixelysia.omarchy-pets
 ```
+
+This deletes the plugin folder after taking a backup. The widget's settings
+line in `~/.config/omarchy/shell.json` stays behind; delete it if you want a
+clean file. `~/.codex/pets/` is untouched.
 
 ## Develop
 
