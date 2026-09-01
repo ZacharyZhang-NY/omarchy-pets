@@ -24,6 +24,8 @@ Panel {
   readonly property bool animate: root.setting("animate", true) === true
   readonly property bool randomBehavior: root.setting("randomBehavior", true) === true
   readonly property bool pinned: root.setting("pinned", false) === true
+  readonly property int previewCount: 3
+  property bool showAll: false
   readonly property var currentPet: {
     var pets = library.pets
     for (var i = 0; i < pets.length; i++) if (pets[i].name === petId) return pets[i]
@@ -38,7 +40,10 @@ Panel {
   readonly property int stageScreenX: Math.round(panel.cardOrigin.x + Border.left(panel.borderSpec) + panel.padding + (cardInnerWidth - stage.width) / 2)
   readonly property int stageScreenY: Math.round(panel.cardOrigin.y + Border.top(panel.borderSpec) + panel.padding)
 
-  onOpenedChanged: if (opened) library.rescan()
+  onOpenedChanged: {
+    if (opened) library.rescan()
+    else showAll = false
+  }
   onPinnedChanged: if (pinned) root.controller.hide()
 
   function open() {
@@ -176,6 +181,17 @@ Panel {
           wrapMode: Text.WrapAnywhere
         }
 
+        Button {
+          visible: root.showAll
+          width: parent.width
+          leftAlign: true
+          iconText: "\uf053"
+          text: "Back"
+          foreground: root.barForeground
+          fontFamily: root.fontFamily
+          onClicked: root.showAll = false
+        }
+
         ListView {
           visible: library.pets.length > 0
           width: parent.width
@@ -184,7 +200,7 @@ Panel {
           clip: true
           boundsBehavior: Flickable.StopAtBounds
           interactive: contentHeight > height
-          model: library.pets
+          model: root.showAll ? library.pets : library.pets.slice(0, root.previewCount)
 
           ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
 
@@ -200,6 +216,17 @@ Panel {
             currentFill: root.selectedFill
             onClicked: root.saveSetting("petId", modelData.name)
           }
+        }
+
+        Button {
+          visible: !root.showAll && library.pets.length > root.previewCount
+          width: parent.width
+          leftAlign: true
+          iconText: "\uf054"
+          text: "View all " + library.pets.length + " pets"
+          foreground: root.barForeground
+          fontFamily: root.fontFamily
+          onClicked: root.showAll = true
         }
 
         Toggle {
