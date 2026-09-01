@@ -13,31 +13,8 @@ QtObject {
   property bool rescanPending: false
 
   // One line per entry: "pet\t<dir>\t<json>" or "skip\t<dir>\t<reason>".
-  readonly property string scanScript: `
-dir="$1"
-[[ -d "$dir" ]] || exit 0
-skip() { printf 'skip\\t%s\\t%s\\n' "$sub" "$1"; }
-validate='
-  if length != 1 or (.[0] | type) != "object" then "pet.json is not a single JSON object"
-  elif (.[0].id | type) != "string" or .[0].id == "" then "pet.json has no id"
-  elif (.[0].spritesheetPath | type) != "string" or .[0].spritesheetPath == ""
-       or (.[0].spritesheetPath | explode | any(. < 32))
-       or (.[0].spritesheetPath | startswith("/") or contains("..")) then "spritesheetPath is not a plain relative path"
-  else .[0] | {id, displayName, kind, spritesheetPath} end'
-shopt -s dotglob
-for sub in "$dir"/*; do
-  [[ -f "$sub/pet.json" ]] || continue
-  [[ $sub == *[$'\\t\\n']* ]] && continue
-  meta=$(jq -c --slurp "$validate" "$sub/pet.json" 2>/dev/null) || { skip "pet.json is not valid JSON"; continue; }
-  [[ $meta == \\{* ]] || { skip "\${meta:1:-1}"; continue; }
-  sheet=$(jq -r .spritesheetPath <<<"$meta")
-  [[ -f "$sub/$sheet" ]] || { skip "spritesheet missing: $sheet"; continue; }
-  height=$(identify -format '%h' "$sub/$sheet[0]" 2>/dev/null) || { skip "unreadable spritesheet"; continue; }
-  (( height % 208 == 0 )) || { skip "atlas height $height is not a multiple of 208"; continue; }
-  (( height >= 9 * 208 )) || { skip "atlas has only $(( height / 208 )) rows, expected at least 9"; continue; }
-  printf 'pet\\t%s\\t%s\\n' "$sub" "$meta"
-done
-`
+  readonly property string scanner: String(Qt.resolvedUrl("scan.py")).replace(/^file:\/\//, "")
+  readonly property int scanTimeoutSec: 10
 
   function rescan() {
     if (!active) return
@@ -46,7 +23,7 @@ done
       return
     }
     scanDir = petsDir
-    scan.command = ["bash", "-c", scanScript, "omarchy-pets-scan", scanDir]
+    scan.command = ["timeout", "-k", "2", String(scanTimeoutSec), "python3", scanner, scanDir]
     scan.running = true
   }
 
@@ -81,7 +58,8 @@ done
     stderr: StdioCollector { id: scanErr; waitForEnd: true }
     onExited: function(code, status) {
       if (scanErr.text) console.warn("omarchy-pets: scan stderr: " + scanErr.text.trim())
-      if (code !== 0) console.warn("omarchy-pets: scan of " + root.scanDir + " exited with " + code)
+      if (code === 124) console.warn("omarchy-pets: scan of " + root.scanDir + " timed out after " + root.scanTimeoutSec + " s")
+      else if (code !== 0) console.warn("omarchy-pets: scan of " + root.scanDir + " exited with " + code)
       else if (root.scanDir === root.petsDir) root.apply(scanOut.text)
       if (root.rescanPending) {
         root.rescanPending = false

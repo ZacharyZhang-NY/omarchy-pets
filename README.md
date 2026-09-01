@@ -11,8 +11,9 @@ anywhere on the screen.
 ## Requirements
 
 - Omarchy 4 (Quattro) with its Quickshell bar, `omarchy-shell`, on Hyprland.
-- `jq` and ImageMagick's `identify`, both part of the Omarchy base install.
-  They check each pet's `pet.json` and sprite sheet when the panel opens.
+- `python3`, which every Omarchy install already has (the base packages
+  `uwsm`, `ufw` and `udiskie` depend on it). It checks each pet's `pet.json`
+  and sprite sheet when the panel opens.
 - At least one pet from <https://codex-pets.net>, unzipped into
   `~/.codex/pets/<id>/` (the same place Codex itself reads). Pets are not
   part of this repository.
@@ -62,8 +63,12 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 
 - Reads `~/.codex/pets/` (or the `petsDir` override) each time the panel
   opens. It never creates, renames or deletes anything there.
-- Runs `bash`, `jq` and `identify` once per scan to validate the pets. No
-  network access, no installer, nothing run as root.
+- Runs `scan.py` under `timeout` once per scan. It opens each `pet.json` and
+  sprite sheet without following symlinks, insists on regular files (64 KiB
+  and 32 MiB caps), reads only the WebP or PNG header for the size (1536
+  wide, 9 to 32 rows of 208, PNG at most 8 bits per channel), looks at no more than 500 entries and is
+  killed after 10 seconds. No image is decoded outside the shell's own
+  bounded `Image`. No network access, no installer, nothing run as root.
 - Writes only its own settings (the keys above) into the bar layout in
   `~/.config/omarchy/shell.json`, through the shell's plugin registry, which
   is the same path `omarchy bar set` uses.
@@ -84,6 +89,7 @@ clean file. `~/.codex/pets/` is untouched.
 omarchy plugin validate .
 /usr/lib/qt6/bin/qmllint -I "$OMARCHY_PATH/shell" *.qml
 /usr/lib/qt6/bin/qmltestrunner -input test
+python3 -m unittest discover -s test -p 'test_scan.py'
 ```
 
 The plugin runs inside `omarchy-shell`; after changing files under
