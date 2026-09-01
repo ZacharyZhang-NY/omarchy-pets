@@ -10,7 +10,7 @@ your pointer, waves when clicked, and can be pinned to the desktop.
 ## Install
 
 ```sh
-omarchy plugin add https://github.com/Raiden-MeixElysia/omarchy-pets.git --enable
+omarchy plugin add https://github.com/ZacharyZhang-NY/omarchy-pets.git --enable
 ```
 
 Then download a pet from <https://codex-pets.net> and unzip it into
