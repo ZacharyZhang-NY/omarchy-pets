@@ -17,6 +17,9 @@ Item {
   property bool hovering: false
   property var look: ({ row: 0, frame: 0 })
   property bool neutralBeat: false
+  property real pressX: 0
+  property real pressY: 0
+  property bool dragMoved: false
 
   readonly property bool ready: sheet.status === Image.Ready
   readonly property int rows: ready ? sheet.sourceSize.height / 208 : 0
@@ -27,6 +30,9 @@ Item {
   readonly property var cell: looking ? look
     : (neutralBeat ? { row: 0, frame: Sprite.NEUTRAL_FRAME } : { row: Sprite.POSES[pose].row, frame: frame })
   property url loggedSheet
+
+  signal dragged(real dx, real dy)
+  signal dropped()
 
   implicitWidth: 192
   implicitHeight: 208
@@ -69,6 +75,25 @@ Item {
       neutralBeat = true
     }
     hovering = false
+  }
+
+  function press(x, y) {
+    pressX = x
+    pressY = y
+    dragMoved = false
+  }
+
+  function drag(x, y) {
+    var dx = x - pressX
+    var dy = y - pressY
+    if (!dragMoved && Math.hypot(dx, dy) < Application.styleHints.startDragDistance) return
+    dragMoved = true
+    dragged(dx, dy)
+  }
+
+  function release() {
+    if (dragMoved) dropped()
+    else wave()
   }
 
   function step() {
@@ -139,8 +164,12 @@ Item {
       root.look = Sprite.lookCell(mouseX - width / 2, mouseY - height / 2)
       root.hovering = true
     }
-    onPositionChanged: function(event) { root.look = Sprite.lookCell(event.x - width / 2, event.y - height / 2) }
+    onPositionChanged: function(event) {
+      root.look = Sprite.lookCell(event.x - width / 2, event.y - height / 2)
+      if (pressed) root.drag(event.x, event.y)
+    }
     onExited: root.leave()
-    onClicked: root.wave()
+    onPressed: function(event) { root.press(event.x, event.y) }
+    onReleased: root.release()
   }
 }

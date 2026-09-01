@@ -21,6 +21,8 @@
       "petsDir": "~/.codex/pets",
       "smooth": true,
       "pinned": false,
+      "pinnedX": -1,
+      "pinnedY": -1,
       "randomBehavior": true,
       "animate": true
     },
@@ -52,6 +54,26 @@
         "label": "Pinned",
         "description": "Keep the pet on the desktop with the panel closed.",
         "defaultValue": false
+      },
+      {
+        "key": "pinnedX",
+        "type": "integer",
+        "label": "Pinned X",
+        "description": "Left edge of the pinned pet in screen pixels. -1 keeps it below its bar icon; dragging the pet sets it.",
+        "min": -1,
+        "max": 16384,
+        "step": 1,
+        "defaultValue": -1
+      },
+      {
+        "key": "pinnedY",
+        "type": "integer",
+        "label": "Pinned Y",
+        "description": "Top edge of the pinned pet in screen pixels. -1 keeps it below its bar icon; dragging the pet sets it.",
+        "min": -1,
+        "max": 16384,
+        "step": 1,
+        "defaultValue": -1
       },
       {
         "key": "randomBehavior",

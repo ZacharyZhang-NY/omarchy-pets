@@ -7,11 +7,20 @@ TestCase {
   name: "PetSprite"
 
   PetSprite { id: sprite }
+  SignalSpy { id: dragSpy; target: sprite; signalName: "dragged" }
+  SignalSpy { id: dropSpy; target: sprite; signalName: "dropped" }
 
   function init() {
     sprite.running = false
     sprite.hovering = false
     sprite.randomBehavior = true
+    dragSpy.clear()
+    dropSpy.clear()
+  }
+
+  function lastDrag() {
+    var args = dragSpy.signalArguments[dragSpy.count - 1]
+    return [args[0], args[1]]
   }
 
   function loadAtlas(name) {
@@ -222,6 +231,58 @@ TestCase {
     loadAtlas("atlas-v2.png")
     compare(sprite.running, false)
     sprite.wave()
+    compare(sprite.pose, "idle")
+  }
+
+  function test_click_without_movement_waves() {
+    loadAtlas("atlas-v2.png")
+    sprite.running = true
+    sprite.press(96, 104)
+    sprite.drag(97, 105)
+    compare(sprite.dragMoved, false)
+    compare(dragSpy.count, 0)
+    sprite.release()
+    compare(sprite.pose, "waving")
+    compare(dropSpy.count, 0)
+    sprite.running = false
+  }
+
+  function test_drag_threshold_is_the_platform_hint() {
+    var distance = Application.styleHints.startDragDistance
+    verify(distance > 0, "startDragDistance " + distance)
+    sprite.press(50, 50)
+    sprite.drag(50 + distance - 1, 50)
+    compare(dragSpy.count, 0)
+    sprite.drag(50 + distance, 50)
+    compare(dragSpy.count, 1)
+    compare(lastDrag(), [distance, 0])
+  }
+
+  function test_drag_moves_relative_to_press_and_release_drops_without_waving() {
+    loadAtlas("atlas-v2.png")
+    sprite.running = true
+    sprite.press(96, 104)
+    sprite.drag(126, 84)
+    compare(sprite.dragMoved, true)
+    compare(lastDrag(), [30, -20])
+    sprite.drag(98, 107)
+    compare(dragSpy.count, 2)
+    compare(lastDrag(), [2, 3])
+    sprite.release()
+    compare(dropSpy.count, 1)
+    compare(sprite.pose, "idle")
+    sprite.press(10, 10)
+    compare(sprite.dragMoved, false)
+    sprite.running = false
+  }
+
+  function test_drag_works_while_stopped() {
+    compare(sprite.running, false)
+    sprite.press(10, 10)
+    sprite.drag(60, 10)
+    compare(lastDrag(), [50, 0])
+    sprite.release()
+    compare(dropSpy.count, 1)
     compare(sprite.pose, "idle")
   }
 }

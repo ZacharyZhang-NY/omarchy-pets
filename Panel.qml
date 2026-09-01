@@ -24,6 +24,10 @@ Panel {
   readonly property bool animate: root.setting("animate", true) === true
   readonly property bool randomBehavior: root.setting("randomBehavior", true) === true
   readonly property bool pinned: root.setting("pinned", false) === true
+  readonly property int pinnedX: root.setting("pinnedX", -1)
+  readonly property int pinnedY: root.setting("pinnedY", -1)
+  property int dragDx: 0
+  property int dragDy: 0
   readonly property int previewCount: 3
   property bool showAll: false
   readonly property var currentPet: {
@@ -40,6 +44,12 @@ Panel {
   readonly property int stageScreenX: Math.round(panel.cardOrigin.x + Border.left(panel.borderSpec) + panel.padding + (cardInnerWidth - stage.width) / 2)
   readonly property int stageScreenY: Math.round(panel.cardOrigin.y + Border.top(panel.borderSpec) + panel.padding)
 
+  // Pinned position: saved or card spot, plus drag, clamped.
+  readonly property int restX: pinnedX >= 0 ? pinnedX : stageScreenX
+  readonly property int restY: pinnedY >= 0 ? pinnedY : stageScreenY
+  readonly property int petX: Math.max(0, Math.min(restX + dragDx, pinnedWindow.width - stage.width))
+  readonly property int petY: Math.max(0, Math.min(restY + dragDy, pinnedWindow.height - stage.height))
+
   onOpenedChanged: {
     if (opened) library.rescan()
     else showAll = false
@@ -54,6 +64,22 @@ Panel {
   function toggle() {
     if (pinned || !opened) open()
     else close()
+  }
+
+  function dragPet(dx, dy) {
+    if (!pinned) return
+    dragDx = petX + dx - restX
+    dragDy = petY + dy - restY
+  }
+
+  function dropPet() {
+    if (!pinned) return
+    var x = petX
+    var y = petY
+    dragDx = 0
+    dragDy = 0
+    saveSetting("pinnedX", x)
+    saveSetting("pinnedY", y)
   }
 
   function saveSetting(key, value) {
@@ -83,6 +109,8 @@ Panel {
   Item {
     id: stage
     parent: root.pinned ? pinnedSlot : panelSlot
+    x: root.pinned ? root.petX : 0
+    y: root.pinned ? root.petY : 0
     width: 192
     height: 208
 
@@ -92,16 +120,19 @@ Panel {
       smoothScaling: root.smoothScaling
       running: (root.opened || root.pinned) && root.animate && root.currentPet !== null
       randomBehavior: root.randomBehavior
+      onDragged: function(dx, dy) { root.dragPet(dx, dy) }
+      onDropped: root.dropPet()
     }
 
     PanelActionButton {
+      visible: !root.pinned
       anchors.top: parent.top
       anchors.right: parent.right
-      iconText: root.pinned ? "\u{f0930}" : "\u{f0403}"
-      tooltipText: root.pinned ? "Unpin" : "Pin to the desktop"
+      iconText: "\u{f0403}"
+      tooltipText: "Pin to the desktop"
       foreground: root.barForeground
       fontFamily: root.fontFamily
-      onClicked: root.saveSetting("pinned", !root.pinned)
+      onClicked: root.saveSetting("pinned", true)
     }
   }
 
@@ -117,14 +148,15 @@ Panel {
     anchors {
       left: true
       top: true
+      right: true
+      bottom: true
     }
-    margins {
-      left: root.stageScreenX
-      top: root.stageScreenY
+    mask: Region {
+      x: stage.x
+      y: stage.y
+      width: stage.width
+      height: stage.height
     }
-    implicitWidth: stage.width
-    implicitHeight: stage.height
-    mask: Region { item: pinnedSlot }
 
     Item {
       id: pinnedSlot
