@@ -2,11 +2,12 @@ import QtQuick
 import Quickshell.Io
 import qs.Commons
 
-// Enumerates <petsDir>/*/ and keeps the valid Codex Pets.
+// Enumerates <petsDir>/*/, keeping verified sheet copies under copyDir.
 QtObject {
   id: root
 
   property string petsDir: ""
+  property string copyDir: ""
   property bool active: false
   property var pets: []
   property string scanDir: ""
@@ -23,7 +24,7 @@ QtObject {
       return
     }
     scanDir = petsDir
-    scan.command = ["timeout", "-k", "2", String(scanTimeoutSec), "python3", scanner, scanDir]
+    scan.command = ["timeout", "-k", "2", String(scanTimeoutSec), "python3", scanner, scanDir, copyDir]
     scan.running = true
   }
 
@@ -40,11 +41,12 @@ QtObject {
       if (parts[0] !== "pet") throw new Error("omarchy-pets: unexpected scan line: " + lines[i])
       var dir = parts[1]
       var meta = JSON.parse(parts[2])
+      if (typeof meta.sheet !== "string") throw new Error("omarchy-pets: scan line without a sheet copy: " + lines[i])
       next.push({
         name: dir.slice(dir.lastIndexOf("/") + 1),
         displayName: meta.displayName || meta.id,
         kind: meta.kind || "",
-        sheetUrl: Util.fileUrl(dir + "/" + meta.spritesheetPath)
+        sheetUrl: Util.fileUrl(meta.sheet)
       })
     }
     if (JSON.stringify(next) === JSON.stringify(pets)) return
