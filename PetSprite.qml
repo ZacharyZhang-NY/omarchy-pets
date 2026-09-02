@@ -6,6 +6,7 @@ Item {
   id: root
 
   property url sheetUrl
+  property string sheetLabel: ""
   property bool smoothScaling: true
   property bool running: false
   property bool randomBehavior: true
@@ -31,7 +32,7 @@ Item {
   readonly property var durations: Sprite.POSES[pose].durations
   readonly property var cell: looking ? look
     : (neutralBeat ? { row: 0, frame: Sprite.NEUTRAL_FRAME } : { row: Sprite.POSES[pose].row, frame: frame })
-  property url loggedSheet
+  property string loggedSheet
 
   signal dragged(real dx, real dy)
   signal dropped()
@@ -155,12 +156,12 @@ Item {
     smooth: root.smoothScaling
     asynchronous: true
     onStatusChanged: {
-      if (status === Image.Error) console.warn("omarchy-pets: failed to load " + source)
-      if (status !== Image.Ready || source === root.loggedSheet) return
-      root.loggedSheet = source
+      if (status === Image.Error) console.warn("omarchy-pets: failed to load the sheet of " + root.sheetLabel)
+      if (status !== Image.Ready || root.sheetLabel === root.loggedSheet) return
+      root.loggedSheet = root.sheetLabel
       if (sourceSize.width !== 1536 || sourceSize.height % 208 !== 0)
-        console.warn("omarchy-pets: unexpected atlas size " + sourceSize.width + "x" + sourceSize.height + " for " + source)
-      console.log("omarchy-pets: loaded " + source + " rows=" + sourceSize.height / 208)
+        console.warn("omarchy-pets: unexpected atlas size " + sourceSize.width + "x" + sourceSize.height + " for " + root.sheetLabel)
+      console.log("omarchy-pets: loaded " + root.sheetLabel + " rows=" + sourceSize.height / 208)
     }
   }
 

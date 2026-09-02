@@ -19,10 +19,6 @@ Panel {
     var raw = String(root.setting("petsDir", "~/.codex/pets"))
     return raw === "~" || raw.indexOf("~/") === 0 ? home + raw.slice(1) : raw
   }
-  readonly property string copyDir: {
-    var cache = String(Quickshell.env("XDG_CACHE_HOME") || "")
-    return (cache.indexOf("/") === 0 ? cache : home + "/.cache") + "/omarchy/" + moduleName
-  }
   readonly property string petId: String(root.setting("petId", ""))
   readonly property bool smoothScaling: root.setting("smooth", true) === true
   readonly property bool animate: root.setting("animate", true) === true
@@ -107,7 +103,6 @@ Panel {
     id: library
     active: root.hostWidget !== null
     petsDir: root.petsDir
-    copyDir: root.copyDir
   }
 
   // Reparented between the card and the pinned window.
@@ -123,6 +118,7 @@ Panel {
       id: sprite
       anchors.fill: parent
       sheetUrl: root.currentPet ? root.currentPet.sheetUrl : ""
+      sheetLabel: root.currentPet ? root.currentPet.name : ""
       smoothScaling: root.smoothScaling
       running: (root.opened || root.pinned) && root.animate && root.currentPet !== null
       randomBehavior: root.randomBehavior

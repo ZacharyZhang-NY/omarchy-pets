@@ -1,22 +1,19 @@
 #!/usr/bin/env python3
-"""Lists valid Codex Pets; copies each sheet to a store."""
+"""Lists valid Codex Pets, each verified sheet inline."""
+import base64
 import errno
-import fcntl
 import hashlib
 import itertools
 import json
 import os
 import stat
 import sys
-import tempfile
-import time
 import unicodedata
 
 MAX_ENTRIES = 500
 MAX_JSON_BYTES = 64 * 1024
-MAX_SHEET_BYTES = 32 * 1024 * 1024
-MAX_STORE_BYTES = 256 * 1024 * 1024
-SWEEP_GRACE_SEC = 60
+MAX_SHEET_BYTES = 6 * 1024 * 1024
+MAX_SCAN_BYTES = 24 * 1024 * 1024
 HEADER_BYTES = 30
 SHEET_WIDTH = 192 * 8
 CELL_HEIGHT = 208
@@ -116,79 +113,6 @@ def plain_relative(path):
             and ".." not in path.split("/") and text_problem(path) is None)
 
 
-def same_copy(path, data):
-    """True if path is a read-only regular file holding data."""
-    try:
-        fd = os.open(path, FILE_FLAGS)
-    except OSError:
-        return False
-    try:
-        info = os.fstat(fd)
-        return (stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o400
-                and info.st_size == len(data) and read_exact(fd, len(data)) == data)
-    finally:
-        os.close(fd)
-
-
-class Store:
-    """Private directory of verified sheet copies for one pets root."""
-
-    def __init__(self, base, root):
-        if not os.path.isabs(base):
-            sys.exit(f"copy store path must be absolute: {base!r}")
-        self.path = os.path.join(base, hashlib.sha256(root.encode("utf-8")).hexdigest()[:16])
-        self.budget = MAX_STORE_BYTES
-        self.kept = set()
-        for path in (base, self.path):
-            try:
-                os.makedirs(path, 0o700, exist_ok=True)
-            except FileExistsError:
-                pass
-            info = os.lstat(path)
-            if not stat.S_ISDIR(info.st_mode) or info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) != 0o700:
-                sys.exit(f"copy store {path} must be a directory owned by this user with mode 0700")
-        # One scanner per store until this process exits.
-        self.lock_fd = os.open(self.path, DIR_FLAGS)
-        fcntl.flock(self.lock_fd, fcntl.LOCK_EX)
-
-    def check(self, name, size):
-        if size > self.budget:
-            raise Skip(f"{name} is {size} bytes, over the {MAX_STORE_BYTES} byte store budget")
-
-    def add(self, name, data, extension):
-        """Content-addressed read-only copy; a complete copy is reused."""
-        self.check(name, len(data))
-        self.budget -= len(data)
-        copy = hashlib.sha256(data).hexdigest() + extension
-        self.kept.add(copy)
-        path = os.path.join(self.path, copy)
-        if same_copy(path, data):
-            os.utime(path)
-            return path
-        fd, tmp = tempfile.mkstemp(dir=self.path, suffix=".tmp")
-        try:
-            try:
-                os.fchmod(fd, 0o400)
-                view = memoryview(data)
-                while view:
-                    view = view[os.write(fd, view):]
-            finally:
-                os.close(fd)
-            os.rename(tmp, path)
-        except BaseException:
-            os.unlink(tmp)
-            raise
-        return path
-
-    def sweep(self):
-        """Drop copies unused for a minute."""
-        cutoff = time.time() - SWEEP_GRACE_SEC
-        with os.scandir(self.path) as entries:
-            for entry in entries:
-                if entry.name not in self.kept and entry.stat(follow_symlinks=False).st_mtime < cutoff:
-                    os.unlink(entry.path)
-
-
 def metadata(pet_fd):
     """Validated pet.json fields and the sprite sheet path."""
     fd = open_component(pet_fd, "pet.json", FILE_FLAGS)
@@ -220,8 +144,8 @@ def metadata(pet_fd):
     return out, sheet
 
 
-def verified_sheet(pet_fd, sheet, store):
-    """Store path of the sheet, after header checks."""
+def verified_sheet(pet_fd, sheet, budget):
+    """(data URL, sha256, byte count) after the header checks."""
     name = os.path.basename(sheet)
     try:
         fd = open_below(pet_fd, sheet, FILE_FLAGS)
@@ -229,7 +153,8 @@ def verified_sheet(pet_fd, sheet, store):
         raise Skip(f"spritesheet missing: {sheet}") from None
     try:
         size = regular_size(fd, name, MAX_SHEET_BYTES)
-        store.check(name, size)
+        if size > budget:
+            raise Skip(f"{name} is {size} bytes, {budget} left of the {MAX_SCAN_BYTES} byte scan budget")
         data = read_exact(fd, size)
     finally:
         os.close(fd)
@@ -250,40 +175,48 @@ def verified_sheet(pet_fd, sheet, store):
     rows = height // CELL_HEIGHT
     if not MIN_ROWS <= rows <= MAX_ROWS:
         raise Skip(f"atlas has {rows} rows, expected {MIN_ROWS}-{MAX_ROWS}")
-    return store.add(name, data, ".png" if png else ".webp")
+    kind = "png" if png else "webp"
+    url = f"data:image/{kind};base64," + base64.b64encode(data).decode("ascii")
+    return url, hashlib.sha256(data).hexdigest(), size
 
 
-def describe(root_fd, entry, store):
-    """Protocol tuple for one entry, or None for a non-pet."""
+def describe(root_fd, entry, budget):
+    """Protocol tuple for one entry, else None."""
     try:
         if entry.is_symlink():
-            return "skip", f"{entry.name} is a symlink"
+            return "skip", f"{entry.name} is a symlink", 0
         if not entry.is_dir(follow_symlinks=False):
             return None
         pet_fd = open_component(root_fd, entry.name, DIR_FLAGS)
     except FileNotFoundError:
         return None
     except OSError as error:
-        return "skip", f"cannot stat: {error.strerror}"
+        return "skip", f"cannot stat: {error.strerror}", 0
     except Skip as skip:
-        return "skip", str(skip)
+        return "skip", str(skip), 0
     try:
         meta, sheet = metadata(pet_fd)
-        meta["sheet"] = verified_sheet(pet_fd, sheet, store)
+        meta["sheet"], meta["digest"], size = verified_sheet(pet_fd, sheet, budget)
     except FileNotFoundError:
         return None
     except Skip as skip:
-        return "skip", str(skip)
+        return "skip", str(skip), 0
     finally:
         os.close(pet_fd)
-    return "pet", json.dumps(meta, ensure_ascii=False, separators=(",", ":"))
+    return "pet", json.dumps(meta, ensure_ascii=False, separators=(",", ":")), size
 
 
-def scan(root, store):
+def main(root):
+    sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
+    problem = text_problem(root)
+    if problem:
+        sys.exit(f"pets directory path {problem}: {root!r}")
     try:
         root_fd = os.open(root, os.O_RDONLY | os.O_DIRECTORY | os.O_CLOEXEC)
     except FileNotFoundError:
         return
+    budget = MAX_SCAN_BYTES
     try:
         with os.scandir(root_fd) as entries:
             listed = list(itertools.islice(entries, MAX_ENTRIES + 1))
@@ -296,26 +229,15 @@ def scan(root, store):
             if problem:
                 print(f"skip\t{path!r}\tdirectory name {problem}")
                 continue
-            described = describe(root_fd, entry, store)
+            described = describe(root_fd, entry, budget)
             if described:
                 print(f"{described[0]}\t{path}\t{described[1]}")
+                budget -= described[2]
     finally:
         os.close(root_fd)
 
 
-def main(root, base):
-    sys.stdout.reconfigure(encoding="utf-8")
-    sys.stderr.reconfigure(encoding="utf-8")
-    for path in (root, base):
-        problem = text_problem(path)
-        if problem:
-            sys.exit(f"path {problem}: {path!r}")
-    store = Store(base, root)
-    scan(root, store)
-    store.sweep()
-
-
 if __name__ == "__main__":
-    if len(sys.argv) != 3:
-        sys.exit("usage: scan.py <pets-dir> <copy-store>")
-    main(sys.argv[1], sys.argv[2])
+    if len(sys.argv) != 2:
+        sys.exit("usage: scan.py <pets-dir>")
+    main(sys.argv[1])

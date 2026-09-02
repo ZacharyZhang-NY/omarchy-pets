@@ -1,9 +1,8 @@
-import fcntl
+import base64
 import hashlib
 import json
 import os
 import shutil
-import stat
 import subprocess
 import sys
 import tempfile
@@ -41,6 +40,10 @@ def vp8_header(width, height):
     return webp(b"VP8 " + (10).to_bytes(4, "little") + b"\x00\x00\x00" + b"\x9d\x01\x2a" + width.to_bytes(2, "little") + height.to_bytes(2, "little"))
 
 
+def data_url(kind, data):
+    return "data:image/%s;base64,%s" % (kind, base64.b64encode(data).decode("ascii"))
+
+
 def lines(result):
     return result.stdout.decode("utf-8").splitlines()
 
@@ -50,21 +53,14 @@ def read(path):
         return f.read()
 
 
-def sha256(data):
-    return hashlib.sha256(data).hexdigest()
-
-
 class ScanTest(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp(prefix="omarchy-pets-")
         self.addCleanup(shutil.rmtree, self.root)
-        self.base = tempfile.mkdtemp(prefix="omarchy-pets-store-")
-        self.addCleanup(shutil.rmtree, self.base)
-        self.store = os.path.join(self.base, sha256(self.root.encode())[:16])
 
-    def run_scan(self, root=None, base=None):
+    def run_scan(self, root=None):
         started = time.monotonic()
-        result = subprocess.run([sys.executable, SCAN, root or self.root, base or self.base], capture_output=True, timeout=10)
+        result = subprocess.run([sys.executable, SCAN, root or self.root], capture_output=True, timeout=10)
         return result, time.monotonic() - started
 
     def pet(self, name, meta=None, sheet=None, sheet_name="spritesheet.webp", json_bytes=None):
@@ -83,7 +79,7 @@ class ScanTest(unittest.TestCase):
 
     def assert_skipped(self, result, name, reason):
         wanted = [l for l in lines(result) if l.startswith("skip\t" + os.path.join(self.root, name) + "\t")]
-        self.assertEqual(len(wanted), 1, lines(result))
+        self.assertEqual(len(wanted), 1, [l[:120] for l in lines(result)])
         self.assertIn(reason, wanted[0])
 
     def listed(self, result):
@@ -93,24 +89,16 @@ class ScanTest(unittest.TestCase):
         for line in lines(result):
             if line.startswith("pet\t" + os.path.join(self.root, name) + "\t"):
                 return json.loads(line.split("\t")[2])
-        self.fail("%s not listed: %s" % (name, lines(result)))
+        self.fail("%s not listed: %s" % (name, [l[:120] for l in lines(result)]))
 
-    def store_files(self):
-        return sorted(os.listdir(self.store))
-
-    def test_real_atlas_is_listed_with_a_private_copy(self):
+    def test_real_atlas_is_listed_with_its_bytes_inline(self):
         atlas = read(ATLAS_V2)
         directory = self.pet("bawi", {"displayName": "hyrax", "kind": "animal"}, sheet=atlas, sheet_name="spritesheet.png")
         result, _ = self.run_scan()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stderr, b"")
-        copy = os.path.join(self.store, sha256(atlas) + ".png")
-        self.assertEqual(lines(result), ["pet\t%s\t%s" % (directory, json.dumps({"id": "bawi", "displayName": "hyrax", "kind": "animal", "sheet": copy}, separators=(",", ":")))])
-        self.assertEqual(read(copy), atlas)
-        self.assertEqual(stat.S_IMODE(os.lstat(copy).st_mode), 0o400)
-        self.assertEqual(stat.S_IMODE(os.lstat(self.store).st_mode), 0o700)
-        self.assertEqual(stat.S_IMODE(os.lstat(self.base).st_mode), 0o700)
-        self.assertEqual(self.store_files(), [os.path.basename(copy)])
+        expected = {"id": "bawi", "displayName": "hyrax", "kind": "animal", "sheet": data_url("png", atlas), "digest": hashlib.sha256(atlas).hexdigest()}
+        self.assertEqual(lines(result), ["pet\t%s\t%s" % (directory, json.dumps(expected, separators=(",", ":")))])
 
     def test_v1_atlas_and_every_webp_header_kind_are_accepted(self):
         self.pet("a-v1", sheet=read(ATLAS_V1), sheet_name="sheet.png")
@@ -119,155 +107,31 @@ class ScanTest(unittest.TestCase):
         self.pet("d-vp8", sheet=vp8_header(1536, 2288))
         result, _ = self.run_scan()
         self.assertEqual(self.listed(result), ["a-v1", "b-vp8x", "c-vp8l", "d-vp8"])
-        self.assertEqual([os.path.splitext(self.meta(result, n)["sheet"])[1] for n in ("a-v1", "b-vp8x")], [".png", ".webp"])
-
-    def test_identical_sheets_share_one_copy_and_rescan_rewrites_nothing(self):
-        self.pet("one")
-        self.pet("two")
-        result, _ = self.run_scan()
-        self.assertEqual(self.meta(result, "one")["sheet"], self.meta(result, "two")["sheet"])
-        self.assertEqual(len(self.store_files()), 1)
-        copy = self.meta(result, "one")["sheet"]
-        inode = os.lstat(copy).st_ino
-        os.utime(copy, (1, 1))
-        result, _ = self.run_scan()
-        self.assertEqual(self.listed(result), ["one", "two"])
-        self.assertEqual(os.lstat(copy).st_ino, inode)
-        self.assertGreater(os.lstat(copy).st_mtime, time.time() - 30, "a reused copy is touched so a concurrent sweep keeps it")
+        self.assertEqual(self.meta(result, "a-v1")["sheet"], data_url("png", read(ATLAS_V1)))
+        self.assertEqual(self.meta(result, "b-vp8x")["sheet"], data_url("webp", vp8x_header(1536, 2288)))
 
     def test_short_read_after_fstat_is_rejected(self):
         data = vp8l_header(1536, 2288) + b"\0" * 1000
         directory = self.pet("shrinking", sheet=data)
-        store = scan.Store(self.base, self.root)
         pet_fd = os.open(directory, os.O_RDONLY | os.O_DIRECTORY)
         self.addCleanup(os.close, pet_fd)
         with mock.patch.object(scan, "read_exact", lambda fd, size: data[:25]):
             with self.assertRaises(scan.Skip) as caught:
-                scan.verified_sheet(pet_fd, "spritesheet.webp", store)
+                scan.verified_sheet(pet_fd, "spritesheet.webp", scan.MAX_SCAN_BYTES)
         self.assertEqual(str(caught.exception), "spritesheet.webp changed while being read")
-        self.assertEqual(os.listdir(store.path), [])
 
-    def test_store_is_locked_for_the_whole_scan(self):
-        self.pet("real")
-        os.makedirs(self.store, 0o700)
-        lock = os.open(self.store, os.O_RDONLY | os.O_DIRECTORY)
-        self.addCleanup(os.close, lock)
-        fcntl.flock(lock, fcntl.LOCK_EX)
-        with self.assertRaises(subprocess.TimeoutExpired):
-            subprocess.run([sys.executable, SCAN, self.root, self.base], capture_output=True, timeout=1)
-        self.assertEqual(self.store_files(), [])
-        fcntl.flock(lock, fcntl.LOCK_UN)
-        result, _ = self.run_scan()
-        self.assertEqual(self.listed(result), ["real"])
-
-    def test_copy_is_unaffected_by_swapping_the_source_after_the_scan(self):
-        directory = self.pet("swap", sheet=vp8l_header(1536, 2288))
-        result, _ = self.run_scan()
-        copy = self.meta(result, "swap")["sheet"]
-        with open(os.path.join(directory, "spritesheet.webp"), "wb") as f:
-            f.write(vp8x_header(16384, 16384))
-        self.assertEqual(read(copy), vp8l_header(1536, 2288))
-        result, _ = self.run_scan()
-        self.assert_skipped(result, "swap", "atlas width 16384 is not 1536")
-        self.assertEqual(read(copy), vp8l_header(1536, 2288))
-
-    def test_unused_copies_are_swept_after_a_minute(self):
-        self.pet("gone")
-        self.pet("stays")
-        result, _ = self.run_scan()
-        gone = self.meta(result, "gone")["sheet"]
-        stays = self.meta(result, "stays")["sheet"]
-        shutil.rmtree(os.path.join(self.root, "gone"))
-        stray = os.path.join(self.store, "leftover.tmp")
-        with open(stray, "wb") as f:
-            f.write(b"x")
-        result, _ = self.run_scan()
-        self.assertEqual(self.listed(result), ["stays"])
-        self.assertTrue(os.path.exists(gone), "a copy younger than a minute must survive")
-        old = time.time() - 120
-        for path in (gone, stays, stray):
-            os.utime(path, (old, old))
-        result, _ = self.run_scan()
-        self.assertEqual(self.store_files(), [os.path.basename(stays)])
-
-    def test_missing_root_sweeps_its_store(self):
-        self.pet("gone")
-        result, _ = self.run_scan()
-        copy = self.meta(result, "gone")["sheet"]
-        old = time.time() - 120
-        os.utime(copy, (old, old))
-        shutil.rmtree(self.root)
-        result, _ = self.run_scan()
-        self.assertEqual((result.returncode, result.stdout, result.stderr), (0, b"", b""))
-        self.assertEqual(self.store_files(), [])
-        os.makedirs(self.root)
-
-    def test_store_budget_is_256_mib_per_root(self):
-        for i in range(9):
+    def test_scan_budget_is_24_mib_of_sheet_bytes(self):
+        for i in range(5):
             directory = self.pet("big%d" % i, sheet=vp8l_header(1536, 2288) + bytes([i]))
-            os.truncate(os.path.join(directory, "spritesheet.webp"), 32 * MIB)
+            os.truncate(os.path.join(directory, "spritesheet.webp"), 6 * MIB)
+        self.pet("small")
         result, elapsed = self.run_scan()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.listed(result), ["big%d" % i for i in range(8)])
-        self.assert_skipped(result, "big8", "spritesheet.webp is 33554432 bytes, over the 268435456 byte store budget")
-        self.assertEqual(len(self.store_files()), 8)
+        self.assertEqual(self.listed(result), ["big0", "big1", "big2", "big3"])
+        self.assert_skipped(result, "big4", "spritesheet.webp is 6291456 bytes, 0 left of the 25165824 byte scan budget")
+        self.assert_skipped(result, "small", "spritesheet.webp is 25 bytes, 0 left of the 25165824 byte scan budget")
+        self.assertEqual(len(self.meta(result, "big3")["sheet"]), len("data:image/webp;base64,") + 4 * (6 * MIB // 3))
         self.assertLess(elapsed, 8)
-
-    def test_store_must_be_a_private_directory(self):
-        for mode in (0o755, 0o500, 0o600):
-            os.makedirs(self.store, mode)
-            result, _ = self.run_scan()
-            self.assertNotEqual(result.returncode, 0, mode)
-            self.assertIn("mode 0700", result.stderr.decode())
-            self.assertEqual(result.stdout, b"")
-            os.rmdir(self.store)
-        os.symlink(self.root, self.store)
-        result, _ = self.run_scan()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("mode 0700", result.stderr.decode())
-
-    def test_precreated_digest_entries_are_replaced_unless_regular_and_complete(self):
-        data = vp8l_header(1536, 2288)
-        self.pet("real", sheet=data)
-        os.makedirs(self.store, 0o700)
-        digest = os.path.join(self.store, sha256(data) + ".webp")
-        os.symlink("/etc/hostname", digest)
-        result, _ = self.run_scan()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.meta(result, "real")["sheet"], digest)
-        self.assertTrue(stat.S_ISREG(os.lstat(digest).st_mode))
-        self.assertEqual(read(digest), data)
-        for wrong in (b"short", data[:-1] + b"\0"):
-            os.chmod(digest, 0o600)
-            with open(digest, "wb") as f:
-                f.write(wrong)
-            os.chmod(digest, 0o400)
-            result, _ = self.run_scan()
-            self.assertEqual(result.returncode, 0, result.stderr)
-            self.assertEqual(read(digest), data)
-            self.assertEqual(stat.S_IMODE(os.lstat(digest).st_mode), 0o400)
-
-    def test_failed_copy_leaves_no_temporary_file(self):
-        data = vp8l_header(1536, 2288)
-        self.pet("real", sheet=data)
-        os.makedirs(self.store, 0o700)
-        os.mkdir(os.path.join(self.store, sha256(data) + ".webp"))
-        result, _ = self.run_scan()
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Is a directory", result.stderr.decode())
-        self.assertEqual(self.store_files(), [sha256(data) + ".webp"])
-
-    def test_relative_store_path_fails_loudly(self):
-        result, _ = self.run_scan(base="relative-store")
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("absolute", result.stderr.decode())
-        self.assertEqual(result.stdout, b"")
-
-    def test_store_path_with_control_characters_fails_loudly(self):
-        result, _ = self.run_scan(base=os.path.join(self.base, "bad\tstore"))
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("control characters", result.stderr.decode())
-        self.assertEqual(result.stdout, b"")
 
     def test_non_ascii_names_round_trip(self):
         self.pet("guga", {"displayName": "咕嘎", "kind": "creature"})
@@ -324,13 +188,12 @@ class ScanTest(unittest.TestCase):
         self.assertEqual(self.listed(result), ["big"])
         self.assert_skipped(result, "bigger", "pet.json is 65537 bytes, limit 65536")
 
-    def test_sheet_file_size_limit_is_32_mib(self):
+    def test_sheet_file_size_limit_is_6_mib(self):
         directory = self.pet("sparse")
-        os.truncate(os.path.join(directory, "spritesheet.webp"), 32 * MIB + 1)
+        os.truncate(os.path.join(directory, "spritesheet.webp"), 6 * MIB + 1)
         result, elapsed = self.run_scan()
-        self.assert_skipped(result, "sparse", "spritesheet.webp is 33554433 bytes, limit 33554432")
+        self.assert_skipped(result, "sparse", "spritesheet.webp is 6291457 bytes, limit 6291456")
         self.assertLess(elapsed, 2)
-        self.assertEqual(self.store_files(), [])
 
     def test_dimension_rules(self):
         self.pet("wide", sheet=vp8x_header(1537, 2288))
@@ -349,7 +212,6 @@ class ScanTest(unittest.TestCase):
         self.assert_skipped(result, "tall", "atlas has 33 rows, expected 9-32")
         self.assert_skipped(result, "unknown", "spritesheet.webp is not a WebP or PNG file")
         self.assertEqual(self.listed(result), ["shortest-ok", "tallest-ok"])
-        self.assertEqual(len(self.store_files()), 2)
 
     def test_entry_cap_is_500_with_a_warning(self):
         for i in range(501):
@@ -396,7 +258,7 @@ class ScanTest(unittest.TestCase):
     def test_optional_fields_are_omitted_when_absent(self):
         self.pet("bare", json_bytes=b'{"id": "bare", "spritesheetPath": "spritesheet.webp"}')
         result, _ = self.run_scan()
-        self.assertEqual(self.meta(result, "bare"), {"id": "bare", "sheet": os.path.join(self.store, sha256(vp8l_header(1536, 2288)) + ".webp")})
+        self.assertEqual(self.meta(result, "bare"), {"id": "bare", "sheet": data_url("webp", vp8l_header(1536, 2288)), "digest": hashlib.sha256(vp8l_header(1536, 2288)).hexdigest()})
 
     def test_missing_root_and_non_pet_entries_are_silent(self):
         result, _ = self.run_scan(root=os.path.join(self.root, "nope"))
