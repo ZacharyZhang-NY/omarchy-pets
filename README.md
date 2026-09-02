@@ -64,11 +64,19 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 - Reads `~/.codex/pets/` (or the `petsDir` override) each time the panel
   opens. It never creates, renames or deletes anything there.
 - Runs `scan.py` under `timeout` once per scan. It opens each `pet.json` and
-  sprite sheet without following symlinks, insists on regular files (64 KiB
-  and 32 MiB caps), reads only the WebP or PNG header for the size (1536
-  wide, 9 to 32 rows of 208, PNG at most 8 bits per channel), looks at no more than 500 entries and is
-  killed after 10 seconds. No image is decoded outside the shell's own
+  sprite sheet without following symlinks anywhere below the pets folder,
+  insists on regular files (64 KiB and 32 MiB caps), reads the sheet through
+  that descriptor, checks the WebP or PNG header (1536 wide, 9 to 32 rows of
+  208, PNG at most 8 bits per channel), looks at no more than 500 entries and
+  is killed after 10 seconds. No image is decoded outside the shell's own
   bounded `Image`. No network access, no installer, nothing run as root.
+- Keeps a read-only copy of every sheet that passed those checks in
+  `~/.cache/omarchy/raiden-meixelysia.omarchy-pets/` (or under
+  `XDG_CACHE_HOME`), private to your user; one scan copies at most 256 MiB
+  per pets folder. The bar and panel load only those copies, so a sheet
+  swapped after the scan is not shown. Each scan deletes, from the store of
+  the folder it scanned, copies that no listed pet has used for a minute;
+  scans happen when the panel opens.
 - Writes only its own settings (the keys above) into the bar layout in
   `~/.config/omarchy/shell.json`, through the shell's plugin registry, which
   is the same path `omarchy bar set` uses.
@@ -80,8 +88,10 @@ omarchy plugin remove raiden-meixelysia.omarchy-pets
 ```
 
 This deletes the plugin folder after taking a backup. The widget's settings
-line in `~/.config/omarchy/shell.json` stays behind; delete it if you want a
-clean file. `~/.codex/pets/` is untouched.
+line in `~/.config/omarchy/shell.json` and the sheet copies in
+`~/.cache/omarchy/raiden-meixelysia.omarchy-pets/` (under `XDG_CACHE_HOME`
+instead if you set it) stay behind; delete them if you want a clean system.
+`~/.codex/pets/` is untouched.
 
 ## Develop
 
