@@ -200,6 +200,7 @@ Panel {
 
         Text {
           width: parent.width
+          textFormat: Text.PlainText
           text: root.currentPet ? root.currentPet.displayName : "Pets"
           color: root.barForeground
           font.family: root.fontFamily
@@ -211,6 +212,7 @@ Panel {
         Text {
           visible: library.pets.length === 0
           width: parent.width
+          textFormat: Text.PlainText
           text: "No pets in " + root.petsDir + "\nDownload one from codex-pets.net and unzip it into " + root.petsDir + "/<id>/"
           color: Qt.darker(root.barForeground, 1.5)
           font.family: root.fontFamily

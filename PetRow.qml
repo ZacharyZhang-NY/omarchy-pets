@@ -37,6 +37,7 @@ CursorSurface {
       spacing: Style.spacing.labelGap
 
       Text {
+        textFormat: Text.PlainText
         text: row.pet ? row.pet.displayName : ""
         color: row.foreground
         font.family: row.fontFamily
@@ -45,6 +46,7 @@ CursorSurface {
 
       Text {
         visible: text !== ""
+        textFormat: Text.PlainText
         text: row.pet ? row.pet.kind : ""
         color: Qt.darker(row.foreground, 1.5)
         font.family: row.fontFamily
