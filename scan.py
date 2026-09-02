@@ -116,6 +116,20 @@ def plain_relative(path):
             and ".." not in path.split("/") and text_problem(path) is None)
 
 
+def same_copy(path, data):
+    """True if path is a read-only regular file holding data."""
+    try:
+        fd = os.open(path, FILE_FLAGS)
+    except OSError:
+        return False
+    try:
+        info = os.fstat(fd)
+        return (stat.S_ISREG(info.st_mode) and stat.S_IMODE(info.st_mode) == 0o400
+                and info.st_size == len(data) and read_exact(fd, len(data)) == data)
+    finally:
+        os.close(fd)
+
+
 class Store:
     """Private directory of verified sheet copies for one pets root."""
 
@@ -148,11 +162,7 @@ class Store:
         copy = hashlib.sha256(data).hexdigest() + extension
         self.kept.add(copy)
         path = os.path.join(self.path, copy)
-        try:
-            info = os.lstat(path)
-        except FileNotFoundError:
-            info = None
-        if info and stat.S_ISREG(info.st_mode) and info.st_size == len(data) and stat.S_IMODE(info.st_mode) == 0o400:
+        if same_copy(path, data):
             os.utime(path)
             return path
         fd, tmp = tempfile.mkstemp(dir=self.path, suffix=".tmp")

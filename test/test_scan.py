@@ -17,8 +17,7 @@ sys.path.insert(0, os.path.dirname(SCAN))
 import scan
 ATLAS_V2 = os.path.join(HERE, "atlas-v2.png")
 ATLAS_V1 = os.path.join(HERE, "atlas-v1.png")
-KIB = 1024
-MIB = 1024 * KIB
+MIB = 1024 * 1024
 
 
 def png_header(width, height, depth=8):
@@ -186,9 +185,8 @@ class ScanTest(unittest.TestCase):
         self.assertEqual(self.listed(result), ["stays"])
         self.assertTrue(os.path.exists(gone), "a copy younger than a minute must survive")
         old = time.time() - 120
-        os.utime(gone, (old, old))
-        os.utime(stays, (old, old))
-        os.utime(stray, (old, old))
+        for path in (gone, stays, stray):
+            os.utime(path, (old, old))
         result, _ = self.run_scan()
         self.assertEqual(self.store_files(), [os.path.basename(stays)])
 
@@ -199,8 +197,6 @@ class ScanTest(unittest.TestCase):
         old = time.time() - 120
         os.utime(copy, (old, old))
         shutil.rmtree(self.root)
-        os.makedirs(self.root)
-        os.rmdir(self.root)
         result, _ = self.run_scan()
         self.assertEqual((result.returncode, result.stdout, result.stderr), (0, b"", b""))
         self.assertEqual(self.store_files(), [])
@@ -241,13 +237,15 @@ class ScanTest(unittest.TestCase):
         self.assertEqual(self.meta(result, "real")["sheet"], digest)
         self.assertTrue(stat.S_ISREG(os.lstat(digest).st_mode))
         self.assertEqual(read(digest), data)
-        os.chmod(digest, 0o600)
-        with open(digest, "wb") as f:
-            f.write(b"short")
-        result, _ = self.run_scan()
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(read(digest), data)
-        self.assertEqual(stat.S_IMODE(os.lstat(digest).st_mode), 0o400)
+        for wrong in (b"short", data[:-1] + b"\0"):
+            os.chmod(digest, 0o600)
+            with open(digest, "wb") as f:
+                f.write(wrong)
+            os.chmod(digest, 0o400)
+            result, _ = self.run_scan()
+            self.assertEqual(result.returncode, 0, result.stderr)
+            self.assertEqual(read(digest), data)
+            self.assertEqual(stat.S_IMODE(os.lstat(digest).st_mode), 0o400)
 
     def test_failed_copy_leaves_no_temporary_file(self):
         data = vp8l_header(1536, 2288)
@@ -320,8 +318,8 @@ class ScanTest(unittest.TestCase):
 
     def test_pet_json_size_limit_is_64_kib_inclusive(self):
         padded = json.dumps({"id": "big", "displayName": "Big", "kind": "object", "spritesheetPath": "spritesheet.webp"}).encode()
-        self.pet("big", json_bytes=padded + b" " * (64 * KIB - len(padded)))
-        self.pet("bigger", json_bytes=padded + b" " * (64 * KIB + 1 - len(padded)))
+        self.pet("big", json_bytes=padded + b" " * (64 * 1024 - len(padded)))
+        self.pet("bigger", json_bytes=padded + b" " * (64 * 1024 + 1 - len(padded)))
         result, _ = self.run_scan()
         self.assertEqual(self.listed(result), ["big"])
         self.assert_skipped(result, "bigger", "pet.json is 65537 bytes, limit 65536")
