@@ -120,6 +120,7 @@ Panel {
     height: 208
 
     PetSprite {
+      id: sprite
       anchors.fill: parent
       sheetUrl: root.currentPet ? root.currentPet.sheetUrl : ""
       smoothScaling: root.smoothScaling
@@ -156,11 +157,12 @@ Panel {
       right: true
       bottom: true
     }
+    // Whole window while engaged, so a fast drag cannot escape.
     mask: Region {
-      x: stage.x
-      y: stage.y
-      width: stage.width
-      height: stage.height
+      x: sprite.engaged ? 0 : stage.x
+      y: sprite.engaged ? 0 : stage.y
+      width: sprite.engaged ? pinnedWindow.width : stage.width
+      height: sprite.engaged ? pinnedWindow.height : stage.height
     }
 
     Item {

@@ -13,6 +13,7 @@ TestCase {
   function init() {
     sprite.running = false
     sprite.hovering = false
+    sprite.held = false
     sprite.randomBehavior = true
     dragSpy.clear()
     dropSpy.clear()
@@ -273,6 +274,38 @@ TestCase {
     compare(sprite.pose, "idle")
     sprite.press(10, 10)
     compare(sprite.dragMoved, false)
+    sprite.running = false
+  }
+
+  function test_engaged_while_hovering_or_held() {
+    compare(sprite.held, false)
+    compare(sprite.engaged, false)
+    sprite.hovering = true
+    compare(sprite.engaged, true)
+    sprite.hovering = false
+    compare(sprite.engaged, false)
+    sprite.press(10, 10)
+    compare(sprite.held, true)
+    compare(sprite.engaged, true)
+    sprite.release()
+    compare(sprite.held, false)
+    compare(sprite.engaged, false)
+  }
+
+  function test_cancel_drops_a_moved_drag_and_never_waves() {
+    loadAtlas("atlas-v2.png")
+    sprite.running = true
+    sprite.press(10, 10)
+    sprite.drag(60, 10)
+    sprite.cancel()
+    compare(sprite.held, false)
+    compare(dropSpy.count, 1)
+    compare(sprite.pose, "idle")
+    sprite.press(10, 10)
+    sprite.cancel()
+    compare(sprite.held, false)
+    compare(dropSpy.count, 1)
+    compare(sprite.pose, "idle")
     sprite.running = false
   }
 

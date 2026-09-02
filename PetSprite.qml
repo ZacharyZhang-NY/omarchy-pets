@@ -20,12 +20,14 @@ Item {
   property real pressX: 0
   property real pressY: 0
   property bool dragMoved: false
+  property bool held: false
 
   readonly property bool ready: sheet.status === Image.Ready
   readonly property int rows: ready ? sheet.sourceSize.height / 208 : 0
   readonly property bool lookEnabled: rows >= Sprite.LOOK_ROWS
   readonly property bool looking: running && lookEnabled && hovering && pose === "idle"
   readonly property bool ticking: running && !looking
+  readonly property bool engaged: hovering || held
   readonly property var durations: Sprite.POSES[pose].durations
   readonly property var cell: looking ? look
     : (neutralBeat ? { row: 0, frame: Sprite.NEUTRAL_FRAME } : { row: Sprite.POSES[pose].row, frame: frame })
@@ -81,6 +83,7 @@ Item {
     pressX = x
     pressY = y
     dragMoved = false
+    held = true
   }
 
   function drag(x, y) {
@@ -92,8 +95,14 @@ Item {
   }
 
   function release() {
+    held = false
     if (dragMoved) dropped()
     else wave()
+  }
+
+  function cancel() {
+    held = false
+    if (dragMoved) dropped()
   }
 
   function step() {
@@ -171,5 +180,9 @@ Item {
     onExited: root.leave()
     onPressed: function(event) { root.press(event.x, event.y) }
     onReleased: root.release()
+    onCanceled: {
+      console.warn("omarchy-pets: pointer grab cancelled")
+      root.cancel()
+    }
   }
 }
