@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "raiden-meixelysia.omarchy-pets",
   "name": "Omarchy Pets",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Raiden-MeixElysia",
   "license": "MIT",
   "description": "An animated Codex Pets companion in the bar: it plays its own moves on a random schedule, looks at your cursor, and can be pinned to the desktop.",
