@@ -76,9 +76,10 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
   of sheets (about ten pets); the rest are skipped with a reason in the
   journal. Scans happen when the panel opens. No sheet data is written
   anywhere.
-- Writes only its own settings (the keys above) into the bar layout in
-  `~/.config/omarchy/shell.json`, through the shell's plugin registry, which
-  is the same path `omarchy bar set` uses.
+- Writes only its own settings (the keys above) into its own entry in the bar
+  layout in `~/.config/omarchy/shell.json`, through the settings call the
+  shell gives every third-party plugin (`updateEntryInline`, scoped to this
+  plugin's id).
 
 ## Remove
 

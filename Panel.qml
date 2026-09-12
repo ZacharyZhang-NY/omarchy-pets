@@ -57,7 +57,7 @@ Panel {
   onPinnedChanged: if (pinned) root.controller.hide()
 
   function open() {
-    if (pinned) saveSetting("pinned", false)
+    if (pinned) saveSettings({ pinned: false })
     root.controller.show()
   }
 
@@ -78,19 +78,27 @@ Panel {
     var y = petY
     dragDx = 0
     dragDy = 0
-    saveSetting("pinnedX", x)
-    saveSetting("pinnedY", y)
+    saveSettings({ pinnedX: x, pinnedY: y })
   }
 
-  function saveSetting(key, value) {
-    var registry = bar && bar.shell ? bar.shell.pluginRegistry : null
-    if (!registry) {
-      console.warn("omarchy-pets: cannot save " + key + ": plugin registry unavailable")
+  // The shell replaces the whole entry, not one key.
+  function saveSettings(values) {
+    var entry = { id: moduleName }
+    for (var key in settings) if (key !== "id") entry[key] = settings[key]
+    var changed = false
+    for (var name in values) {
+      if (entry[name] === values[name]) continue
+      entry[name] = values[name]
+      changed = true
+    }
+    if (!changed) return
+    var shell = bar ? bar.shell : null
+    if (!shell || typeof shell.updateEntryInline !== "function") {
+      console.warn("omarchy-pets: cannot save " + JSON.stringify(values) + ": bar.shell.updateEntryInline unavailable")
       return
     }
-    var error = registry.setBarWidget(moduleName, key, value, {})
-    if (error) console.warn("omarchy-pets: saving " + key + " failed: " + error)
-    else console.log("omarchy-pets: " + key + " = " + JSON.stringify(value))
+    if (shell.updateEntryInline(moduleName, entry)) console.log("omarchy-pets: saved " + JSON.stringify(values))
+    else console.warn("omarchy-pets: shell refused " + JSON.stringify(values))
   }
 
   function switchPanel(direction) {
@@ -134,7 +142,7 @@ Panel {
       tooltipText: "Pin to the desktop"
       foreground: root.barForeground
       fontFamily: root.fontFamily
-      onClicked: root.saveSetting("pinned", true)
+      onClicked: root.saveSettings({ pinned: true })
     }
   }
 
@@ -251,7 +259,7 @@ Panel {
             smoothScaling: root.smoothScaling
             fill: root.hoverFill
             currentFill: root.selectedFill
-            onClicked: root.saveSetting("petId", modelData.name)
+            onClicked: root.saveSettings({ petId: modelData.name })
           }
         }
 
@@ -273,7 +281,7 @@ Panel {
           checked: root.smoothScaling
           foreground: root.barForeground
           fontFamily: root.fontFamily
-          onClicked: root.saveSetting("smooth", !root.smoothScaling)
+          onClicked: root.saveSettings({ smooth: !root.smoothScaling })
         }
 
         Toggle {
@@ -283,7 +291,7 @@ Panel {
           checked: root.randomBehavior
           foreground: root.barForeground
           fontFamily: root.fontFamily
-          onClicked: root.saveSetting("randomBehavior", !root.randomBehavior)
+          onClicked: root.saveSettings({ randomBehavior: !root.randomBehavior })
         }
 
         Toggle {
@@ -293,7 +301,7 @@ Panel {
           checked: root.animate
           foreground: root.barForeground
           fontFamily: root.fontFamily
-          onClicked: root.saveSetting("animate", !root.animate)
+          onClicked: root.saveSettings({ animate: !root.animate })
         }
       }
     }
