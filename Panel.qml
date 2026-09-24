@@ -279,7 +279,7 @@ Panel {
           text: "Open omarchy-pets.com"
           foreground: root.barForeground
           fontFamily: root.fontFamily
-          onClicked: Qt.openUrlExternally("https://omarchy-pets.com")
+          onClicked: Quickshell.execDetached(["omarchy", "launch", "browser", "https://omarchy-pets.com"])
         }
 
         Toggle {
