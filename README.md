@@ -1,8 +1,8 @@
 # Omarchy Pets
 
 A desktop pet for the [Omarchy](https://omarchy.org) bar. It plays
-[Codex Pets](https://codex-pets.net) sprite sheets straight from
-`~/.codex/pets/`, moves on its own every 8–20 seconds, turns its head toward
+[Codex Pets](https://codex-pets.net) sprite sheets from
+`~/.omarchy-pets/pets/`, moves on its own every 8–20 seconds, turns its head toward
 your pointer, waves when clicked, and can be pinned to the desktop and dragged
 anywhere on the screen.
 
@@ -14,9 +14,11 @@ anywhere on the screen.
 - `python3`, which every Omarchy install already has (the base packages
   `uwsm`, `ufw` and `udiskie` depend on it). It checks each pet's `pet.json`
   and sprite sheet when the panel opens.
-- At least one pet from <https://codex-pets.net>, unzipped into
-  `~/.codex/pets/<id>/` (the same place Codex itself reads). Pets are not
-  part of this repository.
+- At least one pet in `~/.omarchy-pets/pets/<id>/`. The `omarchy-pets`
+  command line from <https://omarchy-pets.com/cli> puts them there
+  (`omarchy-pets install <id>`) and, on its first run, offers to copy the
+  pets of `~/.codex/pets/` over without touching them. Pets are not part
+  of this repository.
 
 ## Install
 
@@ -32,6 +34,8 @@ The bar shows the current pet's first frame; with no pets it shows a paw.
   three installed pets, and the settings. Escape or a click outside closes it.
 - Click a pet in the list to switch. The choice survives shell restarts. With
   more than three pets, "View all" opens the full list; "Back" returns.
+- "Open omarchy-pets.com" opens the pet library in your browser; every pet
+  there shows its `omarchy-pets install <id>` command.
 - Hover the pet and it looks at the pointer (v2 sheets only); click it and it
   waves.
 - The pin button (top-right of the pet) keeps the pet on the desktop with the
@@ -51,7 +55,6 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 | Key | Type | Default | Meaning |
 |---|---|---|---|
 | `petId` | string | `""` | Directory name of the current pet; empty means the first one |
-| `petsDir` | string | `~/.codex/pets` | Where pets are read from |
 | `smooth` | bool | `true` | Bilinear scaling; turn off for pixel-art pets |
 | `pinned` | bool | `false` | Keep the pet on the desktop |
 | `pinnedX` | int | `-1` | Left edge of the pinned pet in screen pixels; `-1` is below the bar icon. Dragging sets it |
@@ -61,8 +64,8 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 
 ## What it touches
 
-- Reads `~/.codex/pets/` (or the `petsDir` override) each time the panel
-  opens. It never creates, renames or deletes anything there.
+- Reads `~/.omarchy-pets/pets/` each time the panel opens. It never creates,
+  renames or deletes anything there.
 - Runs `scan.py` under `timeout` once per scan. It opens each `pet.json` and
   sprite sheet without following symlinks anywhere below the pets folder,
   insists on regular files (64 KiB and 6 MiB caps), reads the sheet through
@@ -89,7 +92,7 @@ omarchy plugin remove raiden-meixelysia.omarchy-pets
 
 This deletes the plugin folder after taking a backup. The widget's settings
 line in `~/.config/omarchy/shell.json` stays behind; delete it if you want a
-clean file. `~/.codex/pets/` is untouched.
+clean file. `~/.omarchy-pets/pets/` is untouched.
 
 ## Develop
 

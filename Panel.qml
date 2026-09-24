@@ -15,10 +15,8 @@ Panel {
   property var hostWidget: null
 
   readonly property string home: Quickshell.env("HOME")
-  readonly property string petsDir: {
-    var raw = String(root.setting("petsDir", "~/.codex/pets"))
-    return raw === "~" || raw.indexOf("~/") === 0 ? home + raw.slice(1) : raw
-  }
+  readonly property string petsDir: home + "/.omarchy-pets/pets"
+  readonly property var settingKeys: ["petId", "smooth", "pinned", "pinnedX", "pinnedY", "randomBehavior", "animate"]
   readonly property string petId: String(root.setting("petId", ""))
   readonly property bool smoothScaling: root.setting("smooth", true) === true
   readonly property bool animate: root.setting("animate", true) === true
@@ -84,7 +82,7 @@ Panel {
   // The shell replaces the whole entry, not one key.
   function saveSettings(values) {
     var entry = { id: moduleName }
-    for (var key in settings) if (key !== "id") entry[key] = settings[key]
+    for (var i = 0; i < settingKeys.length; i++) if (settingKeys[i] in settings) entry[settingKeys[i]] = settings[settingKeys[i]]
     var changed = false
     for (var name in values) {
       if (entry[name] === values[name]) continue
@@ -219,7 +217,7 @@ Panel {
           visible: library.pets.length === 0
           width: parent.width
           textFormat: Text.PlainText
-          text: "No pets in " + root.petsDir + "\nDownload one from codex-pets.net and unzip it into " + root.petsDir + "/<id>/"
+          text: "No pets in " + root.petsDir + "\nGet omarchy-pets from omarchy-pets.com/cli, then run omarchy-pets install <id>"
           color: Qt.darker(root.barForeground, 1.5)
           font.family: root.fontFamily
           font.pixelSize: Style.font.bodySmall
@@ -272,6 +270,16 @@ Panel {
           foreground: root.barForeground
           fontFamily: root.fontFamily
           onClicked: root.showAll = true
+        }
+
+        Button {
+          width: parent.width
+          leftAlign: true
+          iconText: "\uf08e"
+          text: "Open omarchy-pets.com"
+          foreground: root.barForeground
+          fontFamily: root.fontFamily
+          onClicked: Qt.openUrlExternally("https://omarchy-pets.com")
         }
 
         Toggle {

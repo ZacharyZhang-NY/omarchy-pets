@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "raiden-meixelysia.omarchy-pets",
   "name": "Omarchy Pets",
-  "version": "1.0.2",
+  "version": "1.1.0",
   "author": "雷电芽衣",
   "license": "MIT",
   "description": "An animated Codex Pets companion in the bar: it plays its own moves on a random schedule, looks at your cursor, and can be pinned to the desktop.",
@@ -12,13 +12,12 @@
   },
   "barWidget": {
     "displayName": "Pets",
-    "description": "Animated sprite pet from ~/.codex/pets",
+    "description": "Animated sprite pet from ~/.omarchy-pets/pets",
     "category": "Fun",
     "allowMultiple": false,
     "defaultSection": "right",
     "defaults": {
       "petId": "",
-      "petsDir": "~/.codex/pets",
       "smooth": true,
       "pinned": false,
       "pinnedX": -1,
@@ -33,13 +32,6 @@
         "label": "Pet",
         "description": "Directory name under the pets folder. Pick it from the panel.",
         "defaultValue": ""
-      },
-      {
-        "key": "petsDir",
-        "type": "string",
-        "label": "Pets folder",
-        "description": "Where Codex Pets packages are unzipped.",
-        "defaultValue": "~/.codex/pets"
       },
       {
         "key": "smooth",
