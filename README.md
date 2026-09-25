@@ -32,6 +32,10 @@ On the first load the plugin installs the command line and `guga` (see
 "What it touches"), and the pet appears on the desktop. The bar shows the
 current pet's first frame; with no pets it shows a paw.
 
+After `omarchy plugin update`, run `omarchy restart shell`. The shell's plugin
+reload keeps the code it compiled at start, so a new version runs only after
+a restart.
+
 ## Use
 
 - Click the pet in the bar to open the panel: the animated pet, the first
