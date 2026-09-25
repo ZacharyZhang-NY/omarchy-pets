@@ -21,7 +21,7 @@ Panel {
   readonly property bool smoothScaling: root.setting("smooth", true) === true
   readonly property bool animate: root.setting("animate", true) === true
   readonly property bool randomBehavior: root.setting("randomBehavior", true) === true
-  readonly property bool pinned: root.setting("pinned", false) === true
+  readonly property bool pinned: root.setting("pinned", true) === true
   readonly property int pinnedX: root.setting("pinnedX", -1)
   readonly property int pinnedY: root.setting("pinnedY", -1)
   property int dragDx: 0

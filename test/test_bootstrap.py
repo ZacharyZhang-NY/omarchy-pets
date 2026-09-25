@@ -94,24 +94,49 @@ class BootstrapTests(unittest.TestCase):
         self.assertEqual(again.returncode, 0)
         self.assertEqual(again.stderr, "")
         self.assertFalse(os.path.exists(os.path.join(ROOT, "cli", "omarchy_pets", "__pycache__")), "bytecode written under the plugin folder")
-        self.assertFalse(os.path.exists(os.path.join(self.home.name, ".omarchy-pets", "bootstrap.lock")))
+        self.assertTrue(os.path.exists(os.path.join(self.home.name, ".omarchy-pets", "bootstrap.lock")))
 
-    def test_a_second_bootstrap_waits_for_the_first_and_a_dead_one_is_taken_over(self):
+    def test_a_second_bootstrap_waits_for_the_first_and_then_reports_its_work(self):
+        import fcntl
+        import threading
         state = os.path.join(self.home.name, ".omarchy-pets")
         os.makedirs(state)
         lock = os.path.join(state, "bootstrap.lock")
-        with open(lock, "w") as handle:
-            handle.write(f"{os.getpid()}\n")
-        busy = self.run_script()
-        self.assertEqual(busy.returncode, 0)
-        self.assertIn("another bootstrap is running", busy.stderr)
-        self.assertFalse(os.path.exists(self.marker))
-        with open(lock, "w") as handle:
-            handle.write("999999999\n")
+        held = os.open(lock, os.O_RDWR | os.O_CREAT, 0o644)
+        fcntl.flock(held, fcntl.LOCK_EX)
+
+        def release_after_the_first_finishes():
+            import time
+            time.sleep(3)
+            with open(self.marker, "w") as handle:
+                handle.write("cli kept, guga installed by the other one\n")
+            fcntl.flock(held, fcntl.LOCK_UN)
+
+        threading.Thread(target=release_after_the_first_finishes, daemon=True).start()
+        done = self.run_script()
+        os.close(held)
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertIn("waiting", done.stderr)
+        self.assertIn("finished", done.stderr)
+        with open(self.marker) as handle:
+            self.assertIn("by the other one", handle.read())
+
+    def test_an_empty_lock_file_left_behind_does_not_block(self):
+        state = os.path.join(self.home.name, ".omarchy-pets")
+        os.makedirs(state)
+        open(os.path.join(state, "bootstrap.lock"), "w").close()
         done = self.run_script()
         self.assertEqual(done.returncode, 0, done.stderr)
         self.assertTrue(os.path.exists(self.marker))
-        self.assertFalse(os.path.exists(lock))
+
+    def test_a_folder_with_an_unusable_pet_still_bootstraps(self):
+        os.makedirs(os.path.join(self.pets, "broken"))
+        with open(os.path.join(self.pets, "broken", "pet.json"), "w") as handle:
+            handle.write("{")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertTrue(os.path.isdir(os.path.join(self.pets, "guga")))
+        self.assertTrue(os.path.exists(self.marker))
 
     def test_an_existing_command_line_is_kept_and_a_present_pet_means_nothing_to_do(self):
         os.makedirs(os.path.dirname(self.cli))

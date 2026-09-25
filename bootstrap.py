@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """First load with no pets: put the bundled command line at ~/.local/bin/omarchy-pets if absent, install the default pet, then never again."""
 
+import fcntl
 import io
 import os
 import subprocess
@@ -10,6 +11,7 @@ import zipfile
 
 PLUGIN = os.path.dirname(os.path.abspath(__file__))
 CLI = os.path.join(PLUGIN, "cli")
+SCAN = os.path.join(PLUGIN, "scan.py")
 DEFAULT_PET = "guga"
 TIMEOUT = 120
 
@@ -19,11 +21,11 @@ def say(text):
 
 
 def has_pets(pets):
-    """Any folder with a pet.json under <pets>; the scanner judges validity, this only decides whether to bootstrap."""
-    try:
-        return any(os.path.isfile(os.path.join(pets, name, "pet.json")) for name in os.listdir(pets))
-    except FileNotFoundError:
+    """What the plugin would show: the scanner's own verdict, one "pet" line per usable folder."""
+    if not os.path.isdir(pets):
         return False
+    done = subprocess.run([sys.executable, "-B", SCAN, pets], capture_output=True, text=True, timeout=TIMEOUT)
+    return any(line.startswith("pet\t") for line in done.stdout.splitlines())
 
 
 def zipapp_bytes():
@@ -80,45 +82,46 @@ def write_marker(path, text):
         handle.write(f"{text} {time.strftime('%Y-%m-%d')}\n")
 
 
-def take_lock(path):
-    """One bootstrap at a time across shell reloads; a lock left by a dead process is taken over."""
+def hold_lock(path):
+    """The one bootstrap at a time: an OS lock on a file that is never unlinked, released by the kernel when the holder dies.
+    A second bootstrap waits for the first, so its caller rescans after the pet is there."""
+    fd = os.open(path, os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644)
+    waited = False
+    deadline = time.monotonic() + TIMEOUT + 30
     while True:
         try:
-            fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644)
-        except FileExistsError:
-            try:
-                with open(path, encoding="utf-8") as handle:
-                    pid = int(handle.read().strip() or 0)
-                os.kill(pid, 0)
-                return False
-            except (ValueError, ProcessLookupError, FileNotFoundError):
-                try:
-                    os.unlink(path)
-                except FileNotFoundError:
-                    pass
-                continue
-            except PermissionError:
-                return False
-        with os.fdopen(fd, "w", encoding="utf-8") as handle:
-            handle.write(f"{os.getpid()}\n")
-        return True
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd, waited
+        except BlockingIOError:
+            if not waited:
+                say("another bootstrap is running; waiting for it")
+                waited = True
+            if time.monotonic() > deadline:
+                os.close(fd)
+                raise TimeoutError("the other bootstrap did not finish in time")
+            time.sleep(1)
 
 
 def main():
     home = os.path.expanduser("~")
     state = os.path.join(home, ".omarchy-pets")
     marker = os.path.join(state, "bootstrap.done")
+    pets = os.path.join(state, "pets")
     if os.path.lexists(marker):
         return 0
-    if has_pets(os.path.join(state, "pets")):
+    if has_pets(pets):
         say("pets are already there, nothing to do")
         return 0
     os.makedirs(state, mode=0o755, exist_ok=True)
-    lock = os.path.join(state, "bootstrap.lock")
-    if not take_lock(lock):
-        say("another bootstrap is running")
-        return 0
     try:
+        fd, waited = hold_lock(os.path.join(state, "bootstrap.lock"))
+    except TimeoutError as error:
+        say(str(error))
+        return 1
+    try:
+        if waited and (os.path.lexists(marker) or has_pets(pets)):
+            say("the other bootstrap finished")
+            return 0
         wrote = install_cli(os.path.join(home, ".local", "bin", "omarchy-pets"))
         installed = install_pet(DEFAULT_PET)
         if not installed:
@@ -127,7 +130,8 @@ def main():
         write_marker(marker, f"cli {'written' if wrote else 'kept'}, {DEFAULT_PET} installed")
         return 0
     finally:
-        os.unlink(lock)
+        fcntl.flock(fd, fcntl.LOCK_UN)
+        os.close(fd)
 
 
 if __name__ == "__main__":
