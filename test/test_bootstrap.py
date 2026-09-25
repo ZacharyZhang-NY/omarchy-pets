@@ -93,6 +93,25 @@ class BootstrapTests(unittest.TestCase):
         again = self.run_script()
         self.assertEqual(again.returncode, 0)
         self.assertEqual(again.stderr, "")
+        self.assertFalse(os.path.exists(os.path.join(ROOT, "cli", "omarchy_pets", "__pycache__")), "bytecode written under the plugin folder")
+        self.assertFalse(os.path.exists(os.path.join(self.home.name, ".omarchy-pets", "bootstrap.lock")))
+
+    def test_a_second_bootstrap_waits_for_the_first_and_a_dead_one_is_taken_over(self):
+        state = os.path.join(self.home.name, ".omarchy-pets")
+        os.makedirs(state)
+        lock = os.path.join(state, "bootstrap.lock")
+        with open(lock, "w") as handle:
+            handle.write(f"{os.getpid()}\n")
+        busy = self.run_script()
+        self.assertEqual(busy.returncode, 0)
+        self.assertIn("another bootstrap is running", busy.stderr)
+        self.assertFalse(os.path.exists(self.marker))
+        with open(lock, "w") as handle:
+            handle.write("999999999\n")
+        done = self.run_script()
+        self.assertEqual(done.returncode, 0, done.stderr)
+        self.assertTrue(os.path.exists(self.marker))
+        self.assertFalse(os.path.exists(lock))
 
     def test_an_existing_command_line_is_kept_and_a_present_pet_means_nothing_to_do(self):
         os.makedirs(os.path.dirname(self.cli))

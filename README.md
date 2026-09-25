@@ -78,7 +78,9 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
   command line to download `guga` from <https://omarchy-pets.com> into
   `~/.omarchy-pets/pets/guga/`, and writes the marker so it never runs
   again. Delete the marker to repeat it. That download is the plugin's one
-  network request, and it happens only then.
+  network request, and it happens only then. `~/.omarchy-pets/bootstrap.lock`
+  holds the running bootstrap's pid while it works; the bundled command line
+  runs without writing bytecode, so nothing changes inside the plugin folder.
 - Runs `scan.py` under `timeout` once per scan. It opens each `pet.json` and
   sprite sheet without following symlinks anywhere below the pets folder,
   insists on regular files (64 KiB and 6 MiB caps), reads the sheet through

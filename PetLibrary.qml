@@ -55,13 +55,14 @@ QtObject {
   }
 
   function apply(next) {
-    // Compared without the sheets: serialising them costs hundreds of MB.
+    // Compared without the sheets: serialising them costs hundreds of MB. An empty first scan equals the empty start, so the bootstrap check comes before that shortcut.
     var key = next.map(function(pet) { return [pet.name, pet.displayName, pet.kind, pet.digest].join("\t") }).join("\n")
-    if (key === petsKey) return
-    petsKey = key
-    pets = next
-    var names = next.map(function(pet) { return pet.name }).join(", ")
-    console.log("omarchy-pets: " + next.length + " pet(s) in " + petsDir + (names ? ": " + names : ""))
+    if (key !== petsKey) {
+      petsKey = key
+      pets = next
+      var names = next.map(function(pet) { return pet.name }).join(", ")
+      console.log("omarchy-pets: " + next.length + " pet(s) in " + petsDir + (names ? ": " + names : ""))
+    }
     if (next.length === 0 && !bootstrapTried) {
       bootstrapTried = true
       bootstrap.command = ["timeout", "-k", "5", String(bootstrapTimeoutSec), "python3", bootstrapper]
