@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "raiden-meixelysia.omarchy-pets",
   "name": "Omarchy Pets",
-  "version": "1.1.1",
+  "version": "1.2.0",
   "author": "雷电芽衣",
   "license": "MIT",
   "description": "An animated Codex Pets companion in the bar: it plays its own moves on a random schedule, looks at your cursor, and can be pinned to the desktop.",
@@ -19,7 +19,7 @@
     "defaults": {
       "petId": "",
       "smooth": true,
-      "pinned": false,
+      "pinned": true,
       "pinnedX": -1,
       "pinnedY": -1,
       "randomBehavior": true,
@@ -45,7 +45,7 @@
         "type": "boolean",
         "label": "Pinned",
         "description": "Keep the pet on the desktop with the panel closed.",
-        "defaultValue": false
+        "defaultValue": true
       },
       {
         "key": "pinnedX",

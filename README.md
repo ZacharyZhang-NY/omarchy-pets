@@ -14,11 +14,13 @@ anywhere on the screen.
 - `python3`, which every Omarchy install already has (the base packages
   `uwsm`, `ufw` and `udiskie` depend on it). It checks each pet's `pet.json`
   and sprite sheet when the panel opens.
-- At least one pet in `~/.omarchy-pets/pets/<id>/`. The `omarchy-pets`
-  command line from <https://omarchy-pets.com/cli> puts them there
-  (`omarchy-pets install <id>`) and, on its first run, offers to copy the
-  pets of `~/.codex/pets/` over without touching them. Pets are not part
-  of this repository.
+- Pets live in `~/.omarchy-pets/pets/<id>/`. The plugin bundles the
+  `omarchy-pets` command line (`cli/`, the same source as
+  <https://omarchy-pets.com/cli>) and, on its first load with no pets, puts
+  it at `~/.local/bin/omarchy-pets` and installs the pet `guga` from
+  omarchy-pets.com. `omarchy-pets install <id>` adds more; the command's
+  first run in a terminal offers to copy the pets of `~/.codex/pets/` over
+  without touching them.
 
 ## Install
 
@@ -26,7 +28,10 @@ anywhere on the screen.
 omarchy plugin add https://github.com/ZacharyZhang-NY/omarchy-pets.git --enable
 ```
 
-The bar shows the current pet's first frame; with no pets it shows a paw.
+On the first load the plugin installs the command line and `guga` (see
+"What it touches"), and the pet appears pinned on the desktop; the bar icon
+unpins it. The bar shows the current pet's first frame; with no pets it
+shows a paw.
 
 ## Use
 
@@ -56,7 +61,7 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 |---|---|---|---|
 | `petId` | string | `""` | Directory name of the current pet; empty means the first one |
 | `smooth` | bool | `true` | Bilinear scaling; turn off for pixel-art pets |
-| `pinned` | bool | `false` | Keep the pet on the desktop |
+| `pinned` | bool | `true` | Keep the pet on the desktop |
 | `pinnedX` | int | `-1` | Left edge of the pinned pet in screen pixels; `-1` is below the bar icon. Dragging sets it |
 | `pinnedY` | int | `-1` | Top edge of the pinned pet; same rules |
 | `randomBehavior` | bool | `true` | Play a random move every 8–20 s |
@@ -65,7 +70,15 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 ## What it touches
 
 - Reads `~/.omarchy-pets/pets/` each time the panel opens. It never creates,
-  renames or deletes anything there.
+  renames or deletes anything there itself.
+- Once, when a scan finds no pet and `~/.omarchy-pets/bootstrap.done` is
+  absent, runs `bootstrap.py` under `timeout`: it writes
+  `~/.local/bin/omarchy-pets` from the bundled `cli/` source (only if that
+  path is empty; an existing file is never replaced), runs the bundled
+  command line to download `guga` from <https://omarchy-pets.com> into
+  `~/.omarchy-pets/pets/guga/`, and writes the marker so it never runs
+  again. Delete the marker to repeat it. That download is the plugin's one
+  network request, and it happens only then.
 - Runs `scan.py` under `timeout` once per scan. It opens each `pet.json` and
   sprite sheet without following symlinks anywhere below the pets folder,
   insists on regular files (64 KiB and 6 MiB caps), reads the sheet through

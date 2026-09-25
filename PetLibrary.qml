@@ -16,6 +16,10 @@ QtObject {
   // One line per entry: "pet\t<dir>\t<json>" or "skip\t<dir>\t<reason>".
   readonly property string scanner: String(Qt.resolvedUrl("scan.py")).replace(/^file:\/\//, "")
   readonly property int scanTimeoutSec: 10
+  // With no pets, bootstrap.py runs once per shell session: the bundled command line, then the default pet.
+  readonly property string bootstrapper: String(Qt.resolvedUrl("bootstrap.py")).replace(/^file:\/\//, "")
+  readonly property int bootstrapTimeoutSec: 180
+  property bool bootstrapTried: false
 
   function rescan() {
     if (!active) return
@@ -58,6 +62,21 @@ QtObject {
     pets = next
     var names = next.map(function(pet) { return pet.name }).join(", ")
     console.log("omarchy-pets: " + next.length + " pet(s) in " + petsDir + (names ? ": " + names : ""))
+    if (next.length === 0 && !bootstrapTried) {
+      bootstrapTried = true
+      bootstrap.command = ["timeout", "-k", "5", String(bootstrapTimeoutSec), "python3", bootstrapper]
+      bootstrap.running = true
+    }
+  }
+
+  property Process bootstrap: Process {
+    stdout: StdioCollector { id: bootOut; waitForEnd: true }
+    stderr: StdioCollector { id: bootErr; waitForEnd: true }
+    onExited: function(code, status) {
+      if (bootErr.text) console.log("omarchy-pets: " + bootErr.text.trim().replace(/\n/g, "\nomarchy-pets: "))
+      if (code !== 0) console.warn("omarchy-pets: bootstrap exited with " + code)
+      else root.rescan()
+    }
   }
 
   property Process scan: Process {
