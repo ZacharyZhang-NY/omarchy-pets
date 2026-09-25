@@ -22,6 +22,8 @@ Panel {
   readonly property bool animate: root.setting("animate", true) === true
   readonly property bool randomBehavior: root.setting("randomBehavior", true) === true
   readonly property bool pinned: root.setting("pinned", true) === true
+  // The pet lives on the desktop while the panel is closed; an open panel shows it inside.
+  readonly property bool onDesktop: pinned && !opened
   readonly property int pinnedX: root.setting("pinnedX", -1)
   readonly property int pinnedY: root.setting("pinnedY", -1)
   property int dragDx: 0
@@ -52,26 +54,23 @@ Panel {
     if (opened) library.rescan()
     else showAll = false
   }
-  onPinnedChanged: if (pinned) root.controller.hide()
-
   function open() {
-    if (pinned) saveSettings({ pinned: false })
     root.controller.show()
   }
 
   function toggle() {
-    if (pinned || !opened) open()
+    if (!opened) open()
     else close()
   }
 
   function dragPet(dx, dy) {
-    if (!pinned) return
+    if (!onDesktop) return
     dragDx = petX + dx - restX
     dragDy = petY + dy - restY
   }
 
   function dropPet() {
-    if (!pinned) return
+    if (!onDesktop) return
     var x = petX
     var y = petY
     dragDx = 0
@@ -114,9 +113,9 @@ Panel {
   // Reparented between the card and the pinned window.
   Item {
     id: stage
-    parent: root.pinned ? pinnedSlot : panelSlot
-    x: root.pinned ? root.petX : 0
-    y: root.pinned ? root.petY : 0
+    parent: root.onDesktop ? pinnedSlot : panelSlot
+    x: root.onDesktop ? root.petX : 0
+    y: root.onDesktop ? root.petY : 0
     width: 192
     height: 208
 
@@ -126,27 +125,16 @@ Panel {
       sheetUrl: root.currentPet ? root.currentPet.sheetUrl : ""
       sheetLabel: root.currentPet ? root.currentPet.name : ""
       smoothScaling: root.smoothScaling
-      running: (root.opened || root.pinned) && root.animate && root.currentPet !== null
+      running: (root.opened || root.onDesktop) && root.animate && root.currentPet !== null
       randomBehavior: root.randomBehavior
       onDragged: function(dx, dy) { root.dragPet(dx, dy) }
       onDropped: root.dropPet()
-    }
-
-    PanelActionButton {
-      visible: !root.pinned
-      anchors.top: parent.top
-      anchors.right: parent.right
-      iconText: "\u{f0403}"
-      tooltipText: "Pin to the desktop"
-      foreground: root.barForeground
-      fontFamily: root.fontFamily
-      onClicked: root.saveSettings({ pinned: true })
     }
   }
 
   PanelWindow {
     id: pinnedWindow
-    visible: root.pinned && root.currentPet !== null
+    visible: root.onDesktop && root.currentPet !== null
     screen: panel.screen
     color: "transparent"
     exclusionMode: ExclusionMode.Ignore
@@ -280,6 +268,16 @@ Panel {
           foreground: root.barForeground
           fontFamily: root.fontFamily
           onClicked: Quickshell.execDetached(["omarchy", "launch", "browser", "https://omarchy-pets.com"])
+        }
+
+        Toggle {
+          width: parent.width
+          label: "Show on desktop"
+          description: "Stays on the desktop when the panel closes; drag it anywhere"
+          checked: root.pinned
+          foreground: root.barForeground
+          fontFamily: root.fontFamily
+          onClicked: root.saveSettings({ pinned: !root.pinned })
         }
 
         Toggle {

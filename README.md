@@ -29,9 +29,8 @@ omarchy plugin add https://github.com/ZacharyZhang-NY/omarchy-pets.git --enable
 ```
 
 On the first load the plugin installs the command line and `guga` (see
-"What it touches"), and the pet appears pinned on the desktop; the bar icon
-unpins it. The bar shows the current pet's first frame; with no pets it
-shows a paw.
+"What it touches"), and the pet appears on the desktop. The bar shows the
+current pet's first frame; with no pets it shows a paw.
 
 ## Use
 
@@ -43,10 +42,11 @@ shows a paw.
   there shows its `omarchy-pets install <id>` command.
 - Hover the pet and it looks at the pointer (v2 sheets only); click it and it
   waves.
-- The pin button (top-right of the pet) keeps the pet on the desktop with the
-  panel closed. It never takes keyboard focus and only the pet itself is
-  clickable. Drag the pinned pet to put it anywhere on the screen; the spot is
-  remembered. Click the bar icon to unpin.
+- "Show on desktop" (on by default) keeps the pet on the desktop while the
+  panel is closed; opening the panel brings it into the panel and closing the
+  panel puts it back. It never takes keyboard focus and only the pet itself is
+  clickable. Drag the pet on the desktop to put it anywhere on the screen; the
+  spot is remembered.
 
 ## Settings
 
@@ -61,9 +61,9 @@ omarchy bar set raiden-meixelysia.omarchy-pets smooth false --json
 |---|---|---|---|
 | `petId` | string | `""` | Directory name of the current pet; empty means the first one |
 | `smooth` | bool | `true` | Bilinear scaling; turn off for pixel-art pets |
-| `pinned` | bool | `true` | Keep the pet on the desktop |
-| `pinnedX` | int | `-1` | Left edge of the pinned pet in screen pixels; `-1` is below the bar icon. Dragging sets it |
-| `pinnedY` | int | `-1` | Top edge of the pinned pet; same rules |
+| `pinned` | bool | `true` | Show the pet on the desktop while the panel is closed |
+| `pinnedX` | int | `-1` | Left edge of the pet on the desktop in screen pixels; `-1` is below the bar icon. Dragging sets it |
+| `pinnedY` | int | `-1` | Top edge of the pet on the desktop; same rules |
 | `randomBehavior` | bool | `true` | Play a random move every 8–20 s |
 | `animate` | bool | `true` | Off shows one still frame and runs no timer |
 
