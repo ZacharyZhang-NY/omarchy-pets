@@ -177,9 +177,19 @@ Panel {
       onCloseRequested: root.close()
       onTabRequested: function(direction) { root.switchPanel(direction) }
 
+      // The card is capped at the screen; what does not fit scrolls, as the clock panel does.
+      Flickable {
+        id: cardScroll
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: content.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        interactive: contentHeight > height
+
       Column {
         id: content
-        width: parent.width
+        width: cardScroll.width
         spacing: Style.space(10)
 
         Item {
@@ -309,6 +319,7 @@ Panel {
           fontFamily: root.fontFamily
           onClicked: root.saveSettings({ animate: !root.animate })
         }
+      }
       }
     }
   }
