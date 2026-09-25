@@ -163,3 +163,13 @@ class BootstrapTests(unittest.TestCase):
         self.assertIn("was not installed", done.stderr)
         self.assertFalse(os.path.exists(self.marker))
         self.assertTrue(os.path.exists(self.cli))
+
+    def test_a_default_pet_the_scanner_rejects_is_reported_and_not_marked_done(self):
+        os.makedirs(os.path.join(self.pets, "guga"))
+        with open(os.path.join(self.pets, "guga", "spritesheet.webp"), "wb") as handle:
+            handle.write(SHEET)
+        done = self.run_script()
+        self.assertEqual(done.returncode, 1, done.stderr)
+        self.assertIn("scanner rejects it", done.stderr)
+        self.assertFalse(os.path.exists(self.marker))
+        self.assertFalse(os.path.exists(os.path.join(self.pets, "guga", "pet.json")))

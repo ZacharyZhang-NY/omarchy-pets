@@ -77,7 +77,10 @@ def install_pet(pet_id):
 
 
 def write_marker(path, text):
-    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644)
+    try:
+        fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o644)
+    except FileExistsError:
+        return
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
         handle.write(f"{text} {time.strftime('%Y-%m-%d')}\n")
 
@@ -119,13 +122,17 @@ def main():
         say(str(error))
         return 1
     try:
-        if waited and (os.path.lexists(marker) or has_pets(pets)):
-            say("the other bootstrap finished")
+        # Another bootstrap may have finished between the checks above and the lock.
+        if os.path.lexists(marker) or has_pets(pets):
+            say("the other bootstrap finished" if waited else "done meanwhile")
             return 0
         wrote = install_cli(os.path.join(home, ".local", "bin", "omarchy-pets"))
         installed = install_pet(DEFAULT_PET)
         if not installed:
             say(f"{DEFAULT_PET} was not installed; the next start tries again")
+            return 1
+        if not has_pets(pets):
+            say(f"{DEFAULT_PET} is in place but the scanner rejects it; delete {os.path.join(pets, DEFAULT_PET)} to have it fetched again")
             return 1
         write_marker(marker, f"cli {'written' if wrote else 'kept'}, {DEFAULT_PET} installed")
         return 0
