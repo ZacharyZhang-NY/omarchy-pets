@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import qs.Commons
 import qs.Ui
+import "Settings.js" as Settings
 
 BarWidget {
   id: root
@@ -10,7 +11,8 @@ BarWidget {
   readonly property bool opened: panelLoader.item ? panelLoader.item.opened === true : false
   readonly property bool popoutSwitchClosing: panelLoader.item ? panelLoader.item.popoutSwitchClosing === true : false
   readonly property var pet: panelLoader.item ? panelLoader.item.currentPet : null
-  readonly property bool smoothScaling: setting("smooth", true) === true
+  readonly property var entry: Settings.current(root.bar && root.bar.shell ? root.bar.shell.barConfig : null, root.moduleName, root.settings)
+  readonly property bool smoothScaling: entry.smooth === undefined || entry.smooth === null || entry.smooth === true
 
   function open() { if (panelLoader.item) panelLoader.item.open() }
   function close() { if (panelLoader.item) panelLoader.item.close() }
@@ -21,7 +23,7 @@ BarWidget {
     var target = panelLoader.item
     if (!target) return
     target.bar = root.bar
-    target.settings = root.settings
+    target.settings = root.entry
     target.anchorItem = button
     target.hostWidget = root
   }
@@ -30,7 +32,7 @@ BarWidget {
   implicitHeight: vertical ? Style.bar.iconSlot : barSize
 
   onBarChanged: injectPanel()
-  onSettingsChanged: injectPanel()
+  onEntryChanged: injectPanel()
 
   Loader {
     id: panelLoader
