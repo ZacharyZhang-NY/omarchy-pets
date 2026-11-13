@@ -1,5 +1,14 @@
 # Omarchy Pets
 
+> **Moved.** This repository is archived. Omarchy Pets now lives at
+> <https://github.com/Raiden-MeixElysia/omarchy-pets> with the plugin id
+> `io.github.raiden-meixelysia.omarchy-pets`. To switch:
+>
+> ```sh
+> omarchy plugin remove raiden-meixelysia.omarchy-pets
+> omarchy plugin add https://github.com/Raiden-MeixElysia/omarchy-pets.git --enable
+> ```
+
 A desktop pet for the [Omarchy](https://omarchy.org) bar. It plays
 [Codex Pets](https://codex-pets.net) sprite sheets from
 `~/.omarchy-pets/pets/`, moves on its own every 8–20 seconds, turns its head toward
